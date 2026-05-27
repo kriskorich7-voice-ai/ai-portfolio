@@ -35,7 +35,7 @@ export default function Home() {
               Explore the tools
             </Link>
             <a
-              href="https://www.linkedin.com/in/kriskorich/"
+              href="https://www.linkedin.com/in/kris-korich/"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/10"

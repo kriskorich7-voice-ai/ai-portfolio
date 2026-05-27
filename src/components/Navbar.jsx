@@ -1,6 +1,6 @@
 import { NavLink, Link } from 'react-router-dom';
 
-const LINKEDIN_URL = 'https://www.linkedin.com/in/kriskorich/';
+const LINKEDIN_URL = 'https://www.linkedin.com/in/kris-korich/';
 
 function navLinkClass({ isActive }) {
   return [

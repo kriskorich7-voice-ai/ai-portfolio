@@ -1,4 +1,4 @@
-const LINKEDIN_URL = 'https://www.linkedin.com/in/kriskorich/';
+const LINKEDIN_URL = 'https://www.linkedin.com/in/kris-korich/';
 const CONTACT_EMAIL = 'hello@kriskorich.com';
 
 const whatIDo = [
