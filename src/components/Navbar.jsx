@@ -29,6 +29,15 @@ export default function Navbar() {
           <NavLink to="/tools" className={navLinkClass}>
             Tools
           </NavLink>
+          <NavLink to="/insights" className={navLinkClass}>
+            Insights
+          </NavLink>
+          <NavLink to="/deal-stories" className={navLinkClass}>
+            Deal Stories
+          </NavLink>
+          <NavLink to="/about" className={navLinkClass}>
+            About
+          </NavLink>
           <a
             href={LINKEDIN_URL}
             target="_blank"

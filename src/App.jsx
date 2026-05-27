@@ -4,6 +4,9 @@ import Footer from './components/Footer.jsx';
 import Home from './pages/Home.jsx';
 import Tools from './pages/Tools.jsx';
 import ProposalGenerator from './pages/ProposalGenerator.jsx';
+import Insights from './pages/Insights.jsx';
+import DealStories from './pages/DealStories.jsx';
+import About from './pages/About.jsx';
 import NotFound from './pages/NotFound.jsx';
 
 export default function App() {
@@ -15,6 +18,9 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/tools" element={<Tools />} />
           <Route path="/proposal-generator" element={<ProposalGenerator />} />
+          <Route path="/insights" element={<Insights />} />
+          <Route path="/deal-stories" element={<DealStories />} />
+          <Route path="/about" element={<About />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
