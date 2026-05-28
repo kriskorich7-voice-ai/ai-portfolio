@@ -6,6 +6,7 @@ import Tools from './pages/Tools.jsx';
 import ProposalGenerator from './pages/ProposalGenerator.jsx';
 import RoiCalculator from './pages/RoiCalculator.jsx';
 import Insights from './pages/Insights.jsx';
+import InsightPost from './pages/InsightPost.jsx';
 import DealStories from './pages/DealStories.jsx';
 import About from './pages/About.jsx';
 import NotFound from './pages/NotFound.jsx';
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/proposal-generator" element={<ProposalGenerator />} />
           <Route path="/roi-calculator" element={<RoiCalculator />} />
           <Route path="/insights" element={<Insights />} />
+          <Route path="/insights/:slug" element={<InsightPost />} />
           <Route path="/deal-stories" element={<DealStories />} />
           <Route path="/about" element={<About />} />
           <Route path="*" element={<NotFound />} />

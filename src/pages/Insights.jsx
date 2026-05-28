@@ -1,22 +1,19 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
-
-const filters = [
-  { id: 'all', label: 'All' },
-  { id: 'voice-ai', label: 'Voice AI' },
-  { id: 'partnerships', label: 'Partnerships' },
-  { id: 'personal', label: 'Personal' },
-];
-
-const posts = [];
+import {
+  insights,
+  insightCategories,
+  formatInsightDate,
+} from '../data/insights.js';
 
 export default function Insights() {
   const [activeFilter, setActiveFilter] = useState('all');
 
   const visiblePosts =
     activeFilter === 'all'
-      ? posts
-      : posts.filter((p) => p.category === activeFilter);
+      ? insights
+      : insights.filter((p) => p.category === activeFilter);
 
   return (
     <section className="container-page py-16 sm:py-20">
@@ -31,7 +28,7 @@ export default function Insights() {
         aria-label="Insight categories"
         className="mb-10 inline-flex items-center gap-1 rounded-xl border border-white/10 bg-ink-800/60 p-1 backdrop-blur-sm"
       >
-        {filters.map((f) => {
+        {insightCategories.map((f) => {
           const isActive = f.id === activeFilter;
           return (
             <button
@@ -74,11 +71,10 @@ function EmptyState() {
           <PenIcon />
         </div>
         <h3 className="mt-2 text-lg font-semibold tracking-tight text-white">
-          First post coming soon
+          Nothing here yet in this category
         </h3>
         <p className="max-w-sm text-sm text-slate-400">
-          I&apos;m drafting the first set of essays now. Check back shortly — or
-          follow along on LinkedIn.
+          Try another filter — or check back soon for new writing.
         </p>
       </div>
     </div>
@@ -87,27 +83,29 @@ function EmptyState() {
 
 function PostCard({ post }) {
   return (
-    <article className="card-surface">
-      <div className="relative flex h-full flex-col gap-4 p-6">
+    <Link
+      to={`/insights/${post.slug}`}
+      className="card-surface group block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/60"
+    >
+      <article className="relative flex h-full flex-col gap-4 p-6">
         <div className="flex items-center justify-between text-xs text-slate-400">
-          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 font-medium tracking-wide text-slate-300">
-            {post.categoryLabel}
+          <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-2.5 py-0.5 font-medium tracking-wide text-accent-blue">
+            {post.category}
           </span>
-          <time dateTime={post.date}>{post.dateLabel}</time>
+          <time dateTime={post.date}>{formatInsightDate(post.date)}</time>
         </div>
-        <h3 className="text-lg font-semibold tracking-tight text-white">
+        <h3 className="text-lg font-semibold tracking-tight text-white group-hover:text-white">
           {post.title}
         </h3>
-        <p className="text-sm leading-relaxed text-slate-300">{post.excerpt}</p>
-        <a
-          href={post.href}
-          className="mt-auto inline-flex items-center gap-1 pt-1 text-sm font-medium text-accent-blue hover:text-white"
-        >
+        <p className="text-sm leading-relaxed text-slate-300">
+          {post.excerpt}
+        </p>
+        <span className="mt-auto inline-flex items-center gap-1 pt-1 text-sm font-medium text-accent-blue transition group-hover:gap-2 group-hover:text-white">
           Read more
           <Arrow />
-        </a>
-      </div>
-    </article>
+        </span>
+      </article>
+    </Link>
   );
 }
 
