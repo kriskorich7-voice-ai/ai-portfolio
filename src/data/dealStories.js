@@ -52,6 +52,103 @@ Partner-sourced revenue doesn't happen by accident. It's the result of building 
 The best GSI partnerships aren't transactional. They're built — and this one was built from zero.
 `,
   },
+  {
+    slug: 'two-partners-one-rfp-global-retail',
+    title:
+      'Two Partners, One RFP, One Global Brand: A $2M Retail Win',
+    date: '2026-05-28',
+    category: 'Partnerships',
+    dealSize: '$2M TCV / $800K ACV',
+    contractLength: '1 Year',
+    industry: 'Retail',
+    motion: 'GSI Partner-Sourced + Salesforce Co-Sell',
+    outcome: 'Displaced incumbent CCaaS across 50+ global markets',
+    excerpt:
+      'A global retail brand in 50+ markets needed a new CCaaS provider. Two independent partner recommendations made the difference.',
+    content: `
+A global retail brand operating in more than 50 markets was done with their current CCaaS provider. The issues were compounding on two fronts: a global telephony network that consistently delivered poor call quality across international markets, and a Salesforce Service Cloud Voice integration that lacked the out-of-the-box functionality their teams actually needed.
+
+The result was a bad experience on both sides of every call — customers couldn't get reliable service, and agents were working around a broken toolset. Leadership decided it was time to run an RFP and find a replacement.
+
+## Building the Right Coalition
+
+I had been cultivating a relationship with a global GSI for months — running enablement sessions, building trust with their sales and delivery teams, and making sure they understood how to position our solution. When that GSI was tapped to lead the RFP process for this customer, we were already in the room. The relationship I had built meant we received the RFP directly rather than chasing it.
+
+But when I reviewed the RFP, one thing stood out immediately: Salesforce Service Cloud Voice was central to the customer's requirements. That wasn't just a technical detail — it was a strategic signal. I picked up the phone.
+
+The Salesforce team I reached out to was one we had never worked with before. It took a few calls and enablement sessions to get them up to speed, but once they understood what we could do natively within their platform, they were all in. What started as a cold introduction became a genuine co-sell motion — with both the GSI and Salesforce actively backing our solution in the RFP process.
+
+Having two credible, independent partners recommend the same vendor carries a different weight than any direct sales pitch could. Their combined endorsement gave the customer the confidence to move forward.
+
+## The Competition
+
+The incumbent had the advantage of incumbency — always a significant hurdle in enterprise deals. Several other vendors entered the RFP with aggressive pricing and flashy demos. One competitor had strong Salesforce relationships of their own and pushed hard to position their native integration as superior. Another came in significantly below on price, betting that cost would win the day.
+
+What neither could match was the combination of voice quality at global scale, a proven Salesforce Service Cloud Voice integration, and two trusted partner organizations speaking from direct experience.
+
+## The Outcome
+
+The customer signed a one-year contract and migrated their contact center operations across more than 50 global markets. They gained a telephony network built for international voice quality, a native Salesforce Service Cloud Voice integration with the out-of-the-box functionality their agents needed, and an end-to-end contact center solution designed to improve both the customer and agent experience.
+
+For the GSI, it validated the investment they had made in building internal skills and certification. For Salesforce, it strengthened a co-sell relationship that opened the door to future pipeline together.
+
+## The Takeaway
+
+The best deals aren't won in the pitch — they're won in the months before the pitch. The GSI relationship gave us access to the RFP. Reading the customer's requirements carefully gave us the signal to bring Salesforce in. And having two partners independently recommend the same solution gave the customer the confidence to choose us over an entrenched incumbent.
+
+Coalition selling isn't a tactic. It's a skill.
+`,
+  },
+  {
+    slug: 'displacing-google-6m-migration',
+    title:
+      'Displacing Google on a $6M Migration: When Technical Excellence Wins the Price War',
+    date: '2026-05-28',
+    category: 'Partnerships',
+    dealSize: '$6M TCV / $3M ACV',
+    contractLength: '2 Years',
+    industry: 'Contact Center Technology',
+    motion: 'Direct Deal',
+    outcome:
+      'Full migration from Google STT across agent assist, virtual agents, and call analytics',
+    excerpt:
+      'Google went cheap to keep the business. We held our price and won anyway — because the technical evaluation made the decision for us.',
+    content: `
+A major CCaaS provider had been running Google for the majority of their speech-to-text needs — embedded across multiple products including agent assist, virtual agents, and call analytics. The problem wasn't the technology on paper. It was the experience in practice.
+
+Customer feedback was consistent and hard to ignore: transcription accuracy was falling short. Across three distinct product lines where STT quality directly shaped the customer experience, the gaps were showing up in support tickets, churn conversations, and product reviews. Leadership decided to run a formal multi-vendor evaluation to find out if something better existed.
+
+## The Sales Cycle
+
+I ran this deal as the AE — owning the sales cycle from first conversation to signed contract.
+
+The evaluation was rigorous. I worked directly with their technical teams throughout the process, bringing in our applied engineers to get hands-on with their audio environments and use cases. When it was time for executive alignment, I made sure leadership was in the room — not just on a slide. In-person meetings at the right moments in a deal like this aren't optional. They're how you demonstrate that you're invested in the outcome, not just the contract.
+
+Our performance in the technical evaluation was decisive. Across every product line — agent assist, virtual agents, call analytics — the accuracy improvements over Google were clear and measurable. The customer's own teams were validating what we already knew: the quality gap was real and it was significant.
+
+## The Negotiation
+
+Google didn't go quietly. Knowing they were losing on the technical merits, they came back with aggressive pricing — using bundled Google Cloud services as a wedge to make the total cost comparison look favorable. The message was clear: we'll go cheap if you stay.
+
+We didn't match it. We didn't try to.
+
+Our position was straightforward: we are the premium STT provider, our technical win speaks for itself, and the value of reducing customer churn across three product lines is worth more than the delta in per-hour rates. We held the line on pricing through multiple rounds of negotiation.
+
+The customer agreed. They had seen the results firsthand and understood that switching costs — measured in continued customer frustration and churn — far exceeded what they'd save by going with a cheaper alternative.
+
+## The Outcome
+
+The customer signed a two-year, $6M commitment and completed a full migration from Google STT across their entire product suite. The results came quickly: customer feedback on transcription quality improved, the accuracy gains translated directly into better performance across agent assist and virtual agent products, and the company gained executive alignment, dedicated customer success engineers, and a partner invested in their future product development.
+
+Legacy products that had been running on outdated STT infrastructure were upgraded as part of the migration — compounding the impact across the entire portfolio.
+
+## The Takeaway
+
+Technical wins don't automatically close deals. But they give you something most salespeople don't have: the confidence to hold your position when the pressure is on. We knew what the evaluation showed. We knew what the customer's churn data showed. And we knew that discounting to match Google's desperation pricing would have undermined the very value proposition that won the evaluation.
+
+Sometimes the best move in a negotiation is to not negotiate.
+`,
+  },
 ];
 
 export function findDealStory(slug) {
