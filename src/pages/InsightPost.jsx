@@ -11,7 +11,32 @@ export default function InsightPost() {
     window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
   }, [slug]);
 
+  useEffect(() => {
+    if (post?.external && post.externalUrl) {
+      window.location.replace(post.externalUrl);
+    }
+  }, [post]);
+
   if (!post) return <NotFound />;
+
+  if (post.external) {
+    return (
+      <section className="container-page py-16 sm:py-20">
+        <p className="text-sm text-slate-400">
+          Redirecting to{' '}
+          <a
+            href={post.externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent-blue hover:text-white"
+          >
+            deepgram.com
+          </a>
+          …
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="container-page py-16 sm:py-20">

@@ -52,6 +52,110 @@ I'm not trying to become an engineer. I'm trying to become a better version of w
 This portfolio is a work in progress. More tools coming.
 `,
   },
+  {
+    slug: 'deepgram-ibm-advanced-voice-enterprise-ai',
+    title:
+      'Deepgram and IBM Introduce Advanced Voice Capabilities for Enterprise AI',
+    date: '2025-05-01',
+    category: 'Partnerships',
+    excerpt:
+      "Deepgram becomes IBM's first voice partner, offering fast, reliable, and scalable transcription and speech technology for enterprise AI.",
+    external: true,
+    externalUrl:
+      'https://deepgram.com/learn/deepgram-and-ibm-introduce-advanced-voice-capabilities-for-enterprise-ai',
+  },
+  {
+    slug: 'banking-voice-cx-speed-trust-scale',
+    title:
+      "Banking's Next Front Door Is Voice: How CX Leaders Are Rewiring Service for Speed, Trust, and Scale",
+    date: '2025-04-01',
+    category: 'Voice AI',
+    excerpt:
+      "Banking has always been about trust — but customer expectations are shifting fast. Here's how voice AI is solving the speed vs. security tradeoff.",
+    external: true,
+    externalUrl:
+      'https://deepgram.com/learn/banking-next-front-door-is-voice-how-cx-leaders-are-rewiring-service-for-speed',
+  },
+  {
+    slug: 'voice-ai-ecommerce-personal-shopper',
+    title:
+      'Your Personal Shopper, Reimagined: The Rise of Voice AI in E-Commerce',
+    date: '2025-03-15',
+    category: 'Voice AI',
+    excerpt:
+      "Voice AI is transforming how customers shop online — from product discovery to checkout. Here's what the next generation of retail experience looks like.",
+    external: true,
+    externalUrl:
+      'https://deepgram.com/learn/your-personal-shopper-reimagined-the-rise-of-voice-ai-in-e-commerce',
+  },
+  {
+    slug: 'voice-ai-airline-experience',
+    title:
+      'Turbulence-Free Service: How Voice AI Is Redefining the Airline Experience',
+    date: '2025-03-01',
+    category: 'Voice AI',
+    excerpt:
+      "From rebooking disrupted flights to personalizing in-flight service, voice AI is becoming the airline industry's most valuable customer experience tool.",
+    external: true,
+    externalUrl:
+      'https://deepgram.com/learn/turbulence-free-service-how-voice-ai-is-redefining-the-airline-experience',
+  },
+  {
+    slug: 'voice-ai-utilities-cx',
+    title: 'How Voice AI Can Transform Utilities: Powering Up CX',
+    date: '2025-02-15',
+    category: 'Voice AI',
+    excerpt:
+      'Utility companies face some of the highest call volumes in any industry. Voice AI is helping them meet demand without sacrificing service quality.',
+    external: true,
+    externalUrl:
+      'https://deepgram.com/learn/how-voice-ai-can-transform-utilities-powering-up-cx',
+  },
+  {
+    slug: 'voice-ai-insurance-claims',
+    title: 'The Future of Claims and Insurance Through Voice AI',
+    date: '2025-02-01',
+    category: 'Voice AI',
+    excerpt:
+      'Claims processing is one of the most friction-heavy experiences in financial services. Voice AI is changing that — faster resolutions, better accuracy, less frustration.',
+    external: true,
+    externalUrl:
+      'https://deepgram.com/learn/the-future-of-claims-and-insurance-through-voice-ai',
+  },
+  {
+    slug: 'voice-ai-public-services-trust',
+    title: 'Rebuilding Trust in Public Services with Voice AI',
+    date: '2025-01-15',
+    category: 'Voice AI',
+    excerpt:
+      'Government and public sector organizations are under pressure to do more with less. Voice AI offers a path to faster, more accessible citizen services.',
+    external: true,
+    externalUrl:
+      'https://deepgram.com/learn/rebuilding-trust-in-public-services-with-voice-ai',
+  },
+  {
+    slug: 'voice-ai-quick-service-restaurants',
+    title: 'Voice AI in Quick Service Restaurants',
+    date: '2025-01-01',
+    category: 'Voice AI',
+    excerpt:
+      'Drive-throughs, order kiosks, and customer service lines — voice AI is becoming the backbone of the QSR experience.',
+    external: true,
+    externalUrl:
+      'https://deepgram.com/learn/voice-ai-in-quick-service-restaurants',
+  },
+  {
+    slug: 'voice-ai-hospitality-concierge',
+    title:
+      'AI Concierge Redefines Hospitality and Customer Loyalty Worldwide',
+    date: '2024-12-01',
+    category: 'Voice AI',
+    excerpt:
+      'The best hospitality experiences feel personal and effortless. Voice AI is making that possible at scale — from check-in to concierge to loyalty programs.',
+    external: true,
+    externalUrl:
+      'https://deepgram.com/learn/ai-concierge-redefines-hospitality-and-customer-loyalty-worldwide',
+  },
 ];
 
 export function findInsight(slug) {

@@ -82,30 +82,72 @@ function EmptyState() {
 }
 
 function PostCard({ post }) {
-  return (
-    <Link
-      to={`/insights/${post.slug}`}
-      className="card-surface group block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/60"
-    >
-      <article className="relative flex h-full flex-col gap-4 p-6">
-        <div className="flex items-center justify-between text-xs text-slate-400">
+  const cardClass =
+    'card-surface group block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/60';
+
+  const inner = (
+    <article className="relative flex h-full flex-col gap-4 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-2.5 py-0.5 font-medium tracking-wide text-accent-blue">
             {post.category}
           </span>
-          <time dateTime={post.date}>{formatInsightDate(post.date)}</time>
+          {post.external && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-accent-violet/30 bg-accent-violet/10 px-2.5 py-0.5 font-medium tracking-wide text-accent-violet">
+              <ExternalIcon /> External Article
+            </span>
+          )}
         </div>
-        <h3 className="text-lg font-semibold tracking-tight text-white group-hover:text-white">
-          {post.title}
-        </h3>
-        <p className="text-sm leading-relaxed text-slate-300">
-          {post.excerpt}
-        </p>
-        <span className="mt-auto inline-flex items-center gap-1 pt-1 text-sm font-medium text-accent-blue transition group-hover:gap-2 group-hover:text-white">
-          Read more
-          <Arrow />
-        </span>
-      </article>
+        <time dateTime={post.date}>{formatInsightDate(post.date)}</time>
+      </div>
+      <h3 className="text-lg font-semibold tracking-tight text-white group-hover:text-white">
+        {post.title}
+      </h3>
+      <p className="text-sm leading-relaxed text-slate-300">
+        {post.excerpt}
+      </p>
+      <span className="mt-auto inline-flex items-center gap-1 pt-1 text-sm font-medium text-accent-blue transition group-hover:gap-2 group-hover:text-white">
+        Read more
+        {post.external ? <ExternalIcon /> : <Arrow />}
+      </span>
+    </article>
+  );
+
+  if (post.external) {
+    return (
+      <a
+        href={post.externalUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cardClass}
+      >
+        {inner}
+      </a>
+    );
+  }
+
+  return (
+    <Link to={`/insights/${post.slug}`} className={cardClass}>
+      {inner}
     </Link>
+  );
+}
+
+function ExternalIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="h-3 w-3"
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M4.25 5.5A.75.75 0 0 1 5 4.75h4a.75.75 0 0 1 0 1.5H5.75v8.5h8.5V11a.75.75 0 0 1 1.5 0v4a.75.75 0 0 1-.75.75H5a.75.75 0 0 1-.75-.75v-9.5Zm6.5-.75a.75.75 0 0 1 .75-.75h4a.75.75 0 0 1 .75.75v4a.75.75 0 0 1-1.5 0V6.56l-4.97 4.97a.75.75 0 1 1-1.06-1.06l4.97-4.97H11.5a.75.75 0 0 1-.75-.75Z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
 
