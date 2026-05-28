@@ -24,6 +24,18 @@ export const tools = [
     status: 'Live',
   },
   {
+    slug: 'voice-prospecting',
+    name: 'Voice Prospecting Assistant',
+    category: 'professional',
+    tagline: 'Speak a prospect. Get cold outreach in seconds.',
+    description:
+      "Speak a prospect's name and get a cold email, LinkedIn message, and call script instantly.",
+    tags: ['Voice AI', 'Outreach', 'Claude'],
+    accent: 'from-accent-violet/40 to-accent-blue/20',
+    href: '/voice-prospecting',
+    status: 'Live',
+  },
+  {
     slug: 'voice-agent',
     name: 'Voice AI Demo',
     category: 'professional',
