@@ -4,7 +4,7 @@ import {
   INDUSTRIES,
   USE_CASES,
   PRICING,
-  SCENARIOS,
+  DEFAULT_SCENARIOS,
   buildProposal,
   formatCurrency,
   formatVolume,
@@ -13,9 +13,9 @@ import {
 import { generateProposalPdf } from '../lib/proposalPdf.js';
 
 const INITIAL_USAGE = {
-  stt: { annualHours: '', avgCallMinutes: '' },
+  stt: { annualHours: '' },
   tts: { annualChars: '' },
-  voiceAgent: { annualHours: '', avgSessionMinutes: '' },
+  voiceAgent: { annualHours: '' },
 };
 
 const INITIAL_MODELS = {
@@ -35,11 +35,13 @@ export default function ProposalGenerator() {
   const [usage, setUsage] = useState(INITIAL_USAGE);
   const [models, setModels] = useState(INITIAL_MODELS);
   const [discounts, setDiscounts] = useState(INITIAL_DISCOUNTS);
-  const [scenarios, setScenarios] = useState(['flat', '3mom', '5mom']);
+  const [scenarios, setScenarios] = useState(DEFAULT_SCENARIOS);
   const [proposal, setProposal] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const canGenerate = companyName.trim().length > 0 && scenarios.length > 0;
+  const enabledScenarioCount = scenarios.filter((s) => s.enabled).length;
+  const canGenerate =
+    companyName.trim().length > 0 && enabledScenarioCount > 0;
 
   const handleToggleUseCase = (id) => {
     setUseCases((prev) =>
@@ -47,9 +49,9 @@ export default function ProposalGenerator() {
     );
   };
 
-  const handleToggleScenario = (id) => {
+  const updateScenario = (id, patch) => {
     setScenarios((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.map((s) => (s.id === id ? { ...s, ...patch } : s))
     );
   };
 
@@ -94,11 +96,8 @@ export default function ProposalGenerator() {
         description="Build a customer-facing Deepgram pricing proposal in minutes. Configure usage, set per-product discounts, project growth, and export to PDF."
       />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <form
-          onSubmit={handleGenerate}
-          className="space-y-5 lg:col-span-3"
-        >
+      <div className="space-y-6">
+        <form onSubmit={handleGenerate} className="space-y-5">
           <FormCard title="Customer">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Company name" required>
@@ -157,22 +156,13 @@ export default function ProposalGenerator() {
             onToggle={() => setUsageOpen((o) => !o)}
           >
             <UsageGroup label="Speech-to-Text">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Annual hours of audio">
-                  <NumberInput
-                    value={usage.stt.annualHours}
-                    onChange={(v) => updateUsage('stt', 'annualHours', v)}
-                    placeholder="e.g. 50000"
-                  />
-                </Field>
-                <Field label="Average call duration (min)">
-                  <NumberInput
-                    value={usage.stt.avgCallMinutes}
-                    onChange={(v) => updateUsage('stt', 'avgCallMinutes', v)}
-                    placeholder="e.g. 4"
-                  />
-                </Field>
-              </div>
+              <Field label="Annual hours of audio">
+                <NumberInput
+                  value={usage.stt.annualHours}
+                  onChange={(v) => updateUsage('stt', 'annualHours', v)}
+                  placeholder="e.g. 50000"
+                />
+              </Field>
             </UsageGroup>
 
             <UsageGroup label="Text-to-Speech">
@@ -186,26 +176,15 @@ export default function ProposalGenerator() {
             </UsageGroup>
 
             <UsageGroup label="Voice Agent">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Annual hours">
-                  <NumberInput
-                    value={usage.voiceAgent.annualHours}
-                    onChange={(v) =>
-                      updateUsage('voiceAgent', 'annualHours', v)
-                    }
-                    placeholder="e.g. 12000"
-                  />
-                </Field>
-                <Field label="Average session duration (min)">
-                  <NumberInput
-                    value={usage.voiceAgent.avgSessionMinutes}
-                    onChange={(v) =>
-                      updateUsage('voiceAgent', 'avgSessionMinutes', v)
-                    }
-                    placeholder="e.g. 3"
-                  />
-                </Field>
-              </div>
+              <Field label="Annual hours">
+                <NumberInput
+                  value={usage.voiceAgent.annualHours}
+                  onChange={(v) =>
+                    updateUsage('voiceAgent', 'annualHours', v)
+                  }
+                  placeholder="e.g. 12000"
+                />
+              </Field>
             </UsageGroup>
           </FormCard>
 
@@ -246,15 +225,14 @@ export default function ProposalGenerator() {
 
           <FormCard
             title="Growth Scenarios"
-            subtitle="Choose which projections to include in the proposal."
+            subtitle="Enable up to three projections and set a custom month-over-month growth rate for each."
           >
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {SCENARIOS.map((s) => (
-                <CheckboxRow
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {scenarios.map((s) => (
+                <ScenarioEditor
                   key={s.id}
-                  checked={scenarios.includes(s.id)}
-                  onChange={() => handleToggleScenario(s.id)}
-                  label={s.label}
+                  scenario={s}
+                  onChange={(patch) => updateScenario(s.id, patch)}
                 />
               ))}
             </div>
@@ -276,22 +254,18 @@ export default function ProposalGenerator() {
             </button>
             {!canGenerate && (
               <p className="text-xs text-slate-500">
-                Add a company name and at least one growth scenario to
+                Add a company name and enable at least one growth scenario to
                 generate.
               </p>
             )}
           </div>
         </form>
 
-        <div className="lg:col-span-2">
-          <div className="lg:sticky lg:top-20">
-            <ProposalPreview
-              proposal={proposal}
-              isGenerating={isGenerating}
-              onDownloadPdf={handleDownloadPdf}
-            />
-          </div>
-        </div>
+        <ProposalPreview
+          proposal={proposal}
+          isGenerating={isGenerating}
+          onDownloadPdf={handleDownloadPdf}
+        />
       </div>
     </section>
   );
@@ -419,6 +393,73 @@ function UsageGroup({ label, children }) {
   );
 }
 
+function ScenarioEditor({ scenario, onChange }) {
+  const { label, percent, enabled } = scenario;
+  return (
+    <div
+      className={
+        'rounded-xl border p-4 transition ' +
+        (enabled
+          ? 'border-accent-blue/40 bg-accent-blue/5'
+          : 'border-white/10 bg-ink-900/40')
+      }
+    >
+      <label className="flex cursor-pointer items-center gap-2.5">
+        <span
+          className={
+            'flex h-4 w-4 flex-none items-center justify-center rounded border transition ' +
+            (enabled
+              ? 'border-accent-blue bg-accent-blue text-white'
+              : 'border-white/20 bg-transparent')
+          }
+        >
+          {enabled && (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-3 w-3"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          )}
+        </span>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => onChange({ enabled: e.target.checked })}
+          className="sr-only"
+        />
+        <span className="text-sm font-semibold text-white">{label}</span>
+      </label>
+      <div className="mt-3">
+        <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+          Growth %/mo
+        </span>
+        <div className="relative">
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            value={percent}
+            onChange={(e) => onChange({ percent: e.target.value })}
+            disabled={!enabled}
+            className={`${inputClass} pr-7 disabled:opacity-50`}
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+            %
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProductPricingRow({
   productKey,
   productLabel,
@@ -491,7 +532,7 @@ function ProposalPreview({ proposal, isGenerating, onDownloadPdf }) {
   if (!proposal) {
     return (
       <div className="card-surface">
-        <div className="relative flex h-96 flex-col items-center justify-center gap-2 p-6 text-center">
+        <div className="relative flex h-72 flex-col items-center justify-center gap-2 p-6 text-center">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-accent-blue">
             <DocumentIcon />
           </div>
@@ -577,15 +618,15 @@ function ProductTable({ product }) {
           {product.model.unit}
         </span>
       </div>
-      <div className="overflow-hidden rounded-xl border border-white/10">
-        <table className="w-full text-left text-xs">
+      <div className="overflow-x-auto rounded-xl border border-white/10">
+        <table className="w-full min-w-[640px] text-left text-xs">
           <thead className="bg-ink-900/80 text-slate-400">
             <tr>
               <th className="px-3 py-2 font-medium"></th>
               {product.lines.map((line) => (
                 <th
                   key={line.scenario.id}
-                  className="px-3 py-2 text-right font-medium text-slate-300"
+                  className="px-3 py-2 text-right font-medium text-slate-300 whitespace-nowrap"
                 >
                   {line.scenario.label}
                 </th>
@@ -629,12 +670,12 @@ function ProductTable({ product }) {
 function Row({ label, values, highlight, accent }) {
   return (
     <tr>
-      <td className="px-3 py-2 text-slate-400">{label}</td>
+      <td className="px-3 py-2 text-slate-400 whitespace-nowrap">{label}</td>
       {values.map((v, i) => (
         <td
           key={i}
           className={
-            'px-3 py-2 text-right tabular-nums ' +
+            'px-3 py-2 text-right tabular-nums whitespace-nowrap ' +
             (accent
               ? 'font-semibold text-emerald-300'
               : highlight

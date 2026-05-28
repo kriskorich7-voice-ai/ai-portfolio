@@ -82,34 +82,27 @@ export function generateProposalPdf(proposal) {
     usageRows.push([
       'Speech-to-Text',
       `${Number(proposal.usage.stt.annualHours).toLocaleString()} annual hours`,
-      proposal.usage.stt.avgCallMinutes
-        ? `${proposal.usage.stt.avgCallMinutes} min avg call`
-        : '—',
     ]);
   }
   if (Number(proposal.usage.tts.annualChars) > 0) {
     usageRows.push([
       'Text-to-Speech',
       `${Number(proposal.usage.tts.annualChars).toLocaleString()} annual characters`,
-      '—',
     ]);
   }
   if (Number(proposal.usage.voiceAgent.annualHours) > 0) {
     usageRows.push([
       'Voice Agent',
       `${Number(proposal.usage.voiceAgent.annualHours).toLocaleString()} annual hours`,
-      proposal.usage.voiceAgent.avgSessionMinutes
-        ? `${proposal.usage.voiceAgent.avgSessionMinutes} min avg session`
-        : '—',
     ]);
   }
   if (usageRows.length === 0) {
-    usageRows.push(['—', 'No usage details provided', '—']);
+    usageRows.push(['—', 'No usage details provided']);
   }
 
   autoTable(doc, {
     startY: y + 6,
-    head: [['Product', 'Annual Volume', 'Avg Duration']],
+    head: [['Product', 'Annual Volume']],
     body: usageRows,
     theme: 'grid',
     headStyles: {

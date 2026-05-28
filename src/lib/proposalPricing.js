@@ -19,34 +19,46 @@ export const PRICING = {
   stt: {
     label: 'Speech-to-Text',
     options: [
-      { id: 'nova-3-mono', name: 'Nova-3 Mono', rate: 0.0048, unit: '/min' },
-      { id: 'nova-3-multi', name: 'Nova-3 Multi', rate: 0.0058, unit: '/min' },
-      { id: 'flux-english', name: 'Flux English', rate: 0.0065, unit: '/min' },
+      { id: 'flux-english', name: 'Flux English', rate: 0.39, unit: '/hr' },
+      { id: 'flux-multi', name: 'Flux Multilingual', rate: 0.47, unit: '/hr' },
+      { id: 'nova-3-mono', name: 'Nova-3 Mono', rate: 0.29, unit: '/hr' },
+      { id: 'nova-3-multi', name: 'Nova-3 Multi', rate: 0.35, unit: '/hr' },
+      { id: 'nova-3-mono-batch', name: 'Nova-3 Mono Batch', rate: 0.26, unit: '/hr' },
+      { id: 'nova-3-multi-batch', name: 'Nova-3 Multi Batch', rate: 0.31, unit: '/hr' },
     ],
   },
   tts: {
     label: 'Text-to-Speech',
     options: [
-      { id: 'aura-2', name: 'Aura-2', rate: 0.03, unit: '/1k chars' },
       { id: 'aura-1', name: 'Aura-1', rate: 0.015, unit: '/1k chars' },
+      { id: 'aura-2', name: 'Aura-2', rate: 0.03, unit: '/1k chars' },
+      { id: 'flux-tts', name: 'Flux TTS', rate: 0.032, unit: '/1k chars' },
     ],
   },
   voiceAgent: {
     label: 'Voice Agent',
     options: [
-      { id: 'standard', name: 'Standard', rate: 0.075, unit: '/min' },
-      { id: 'standard-byo-tts', name: 'Standard BYO TTS', rate: 0.065, unit: '/min' },
-      { id: 'custom-byo-llm', name: 'Custom BYO LLM', rate: 0.056, unit: '/min' },
-      { id: 'advanced', name: 'Advanced', rate: 0.163, unit: '/min' },
+      { id: 'standard', name: 'Standard', rate: 4.5, unit: '/hr' },
+      { id: 'standard-byo-tts', name: 'Standard BYO TTS', rate: 3.38, unit: '/hr' },
+      { id: 'custom-byo-llm', name: 'Custom BYO LLM', rate: 3.9, unit: '/hr' },
+      { id: 'custom-byo-llm-tts', name: 'Custom BYO LLM + TTS', rate: 3.0, unit: '/hr' },
+      { id: 'advanced', name: 'Advanced', rate: 9.75, unit: '/hr' },
+      { id: 'advanced-byo-tts', name: 'Advanced BYO TTS', rate: 7.31, unit: '/hr' },
     ],
   },
 };
 
-export const SCENARIOS = [
-  { id: 'flat', label: 'Flat (0%)', monthlyRate: 0 },
-  { id: '3mom', label: '3% MoM', monthlyRate: 0.03 },
-  { id: '5mom', label: '5% MoM', monthlyRate: 0.05 },
+export const DEFAULT_SCENARIOS = [
+  { id: 's1', label: 'Scenario 1', percent: 0, enabled: true },
+  { id: 's2', label: 'Scenario 2', percent: 3, enabled: true },
+  { id: 's3', label: 'Scenario 3', percent: 5, enabled: true },
 ];
+
+export function scenarioDisplayLabel(scenario) {
+  const pct = Number(scenario.percent) || 0;
+  if (pct === 0) return `${scenario.label} (Flat)`;
+  return `${scenario.label} (${pct}% MoM)`;
+}
 
 function annualMultiplier(monthlyRate) {
   if (!monthlyRate) return 12;
@@ -63,8 +75,19 @@ function computeLine({ baseAnnual, rate, divisor, discountPct, monthlyRate }) {
   return { annualVolume, listCost, discountedCost, savings };
 }
 
+function normalizeScenarios(rawScenarios) {
+  return rawScenarios
+    .filter((s) => s.enabled)
+    .map((s) => ({
+      id: s.id,
+      label: scenarioDisplayLabel(s),
+      percent: Number(s.percent) || 0,
+      monthlyRate: (Number(s.percent) || 0) / 100,
+    }));
+}
+
 export function buildProposal(input) {
-  const scenarios = SCENARIOS.filter((s) => input.scenarios.includes(s.id));
+  const scenarios = normalizeScenarios(input.scenarios);
   const products = [];
 
   const sttHours = Number(input.usage.stt.annualHours) || 0;
@@ -73,7 +96,7 @@ export function buildProposal(input) {
     const lines = scenarios.map((scenario) => ({
       scenario,
       ...computeLine({
-        baseAnnual: sttHours * 60,
+        baseAnnual: sttHours,
         rate: model.rate,
         divisor: 1,
         discountPct: input.discounts.stt,
@@ -84,7 +107,7 @@ export function buildProposal(input) {
       key: 'stt',
       label: PRICING.stt.label,
       model,
-      volumeUnit: 'minutes',
+      volumeUnit: 'hours',
       discountPct: Number(input.discounts.stt) || 0,
       lines,
     });
@@ -121,7 +144,7 @@ export function buildProposal(input) {
     const lines = scenarios.map((scenario) => ({
       scenario,
       ...computeLine({
-        baseAnnual: vaHours * 60,
+        baseAnnual: vaHours,
         rate: model.rate,
         divisor: 1,
         discountPct: input.discounts.voiceAgent,
@@ -132,7 +155,7 @@ export function buildProposal(input) {
       key: 'voiceAgent',
       label: PRICING.voiceAgent.label,
       model,
-      volumeUnit: 'minutes',
+      volumeUnit: 'hours',
       discountPct: Number(input.discounts.voiceAgent) || 0,
       lines,
     });
@@ -162,11 +185,10 @@ export function formatVolume(value, unit) {
   if (unit === 'characters') {
     return `${new Intl.NumberFormat('en-US').format(Math.round(value))} chars`;
   }
-  if (unit === 'minutes') {
-    const hours = value / 60;
+  if (unit === 'hours') {
     return `${new Intl.NumberFormat('en-US', {
       maximumFractionDigits: 0,
-    }).format(hours)} hrs`;
+    }).format(value)} hrs`;
   }
   return new Intl.NumberFormat('en-US').format(Math.round(value));
 }
