@@ -1,6 +1,6 @@
+import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
-
-const stories = [];
+import { dealStories, formatDealStoryDate } from '../data/dealStories.js';
 
 export default function DealStories() {
   return (
@@ -8,97 +8,88 @@ export default function DealStories() {
       <PageHeader
         eyebrow="Case Studies"
         title="Deal Stories"
-        description="Anonymous case studies from the sales floor."
+        description="Anonymized case studies from real partnership and sales deals."
       />
 
-      {stories.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {stories.map((story) => (
-            <DealStoryCard key={story.slug} story={story} />
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {dealStories.map((story) => (
+          <DealStoryCard key={story.slug} story={story} />
+        ))}
+      </div>
     </section>
   );
 }
 
-function EmptyState() {
+function DealStoryCard({ story }) {
   return (
-    <div className="card-surface">
-      <div className="relative flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-accent-blue">
-          <BriefcaseIcon />
+    <Link
+      to={`/deal-stories/${story.slug}`}
+      className="card-surface group block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/60"
+    >
+      <article className="relative flex h-full flex-col gap-5 p-6">
+        <div className="flex items-center justify-between text-xs text-slate-400">
+          <span className="rounded-full border border-accent-blue/30 bg-accent-blue/10 px-2.5 py-0.5 font-medium tracking-wide text-accent-blue">
+            {story.category}
+          </span>
+          <time dateTime={story.date}>{formatDealStoryDate(story.date)}</time>
         </div>
-        <h3 className="mt-2 text-lg font-semibold tracking-tight text-white">
-          First deal story coming soon
+
+        <h3 className="text-lg font-semibold tracking-tight text-white">
+          {story.title}
         </h3>
-        <p className="max-w-sm text-sm text-slate-400">
-          I&apos;m writing up anonymized case studies from real partnership and
-          sales deals. The first will land here shortly.
-        </p>
-      </div>
-    </div>
-  );
-}
 
-export function DealStoryCard({ story }) {
-  return (
-    <article className="card-surface">
-      <div className="relative flex flex-col gap-6 p-6">
-        <div className="grid grid-cols-3 gap-4 border-b border-white/5 pb-5">
-          <Stat label="Deal Size" value={story.dealSize} />
-          <Stat label="Industry" value={story.industry} />
-          <Stat label="Partnership Type" value={story.partnershipType} />
+        <div className="flex flex-wrap gap-1.5">
+          <Badge tone="emerald">{story.dealSize}</Badge>
+          <Badge tone="violet">{story.motion}</Badge>
+          <Badge tone="slate">{story.industry}</Badge>
         </div>
 
-        <Section heading="Challenge" body={story.challenge} />
-        <Section heading="Approach" body={story.approach} />
-        <Section heading="Outcome" body={story.outcome} />
-      </div>
-    </article>
+        <p className="text-sm leading-relaxed text-slate-300">
+          {story.excerpt}
+        </p>
+
+        <span className="mt-auto inline-flex items-center gap-1 pt-1 text-sm font-medium text-accent-blue transition group-hover:gap-2 group-hover:text-white">
+          Read story
+          <Arrow />
+        </span>
+      </article>
+    </Link>
   );
 }
 
-function Stat({ label, value }) {
+function Badge({ children, tone = 'slate' }) {
+  const toneClass =
+    tone === 'emerald'
+      ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
+      : tone === 'violet'
+        ? 'border-accent-violet/30 bg-accent-violet/10 text-accent-violet'
+        : 'border-white/10 bg-white/5 text-slate-300';
   return (
-    <div>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-        {label}
-      </p>
-      <p className="mt-1 text-sm font-semibold text-white">{value}</p>
-    </div>
+    <span
+      className={
+        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide ' +
+        toneClass
+      }
+    >
+      {children}
+    </span>
   );
 }
 
-function Section({ heading, body }) {
-  return (
-    <div>
-      <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-blue/80">
-        {heading}
-      </h4>
-      <p className="mt-2 text-sm leading-relaxed text-slate-300">{body}</p>
-    </div>
-  );
-}
-
-function BriefcaseIcon() {
+function Arrow() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="h-4 w-4"
       aria-hidden="true"
     >
-      <rect x="3" y="7" width="18" height="13" rx="2" />
-      <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-      <path d="M3 13h18" />
+      <path
+        fillRule="evenodd"
+        d="M5.22 14.78a.75.75 0 0 1 0-1.06L12.94 6H7.5a.75.75 0 0 1 0-1.5h7.25c.41 0 .75.34.75.75V12.5a.75.75 0 0 1-1.5 0V7.06l-7.72 7.72a.75.75 0 0 1-1.06 0Z"
+        clipRule="evenodd"
+      />
     </svg>
   );
 }
