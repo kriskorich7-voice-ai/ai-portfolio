@@ -4,6 +4,7 @@ import Footer from './components/Footer.jsx';
 import Home from './pages/Home.jsx';
 import Tools from './pages/Tools.jsx';
 import ProposalGenerator from './pages/ProposalGenerator.jsx';
+import RoiCalculator from './pages/RoiCalculator.jsx';
 import Insights from './pages/Insights.jsx';
 import DealStories from './pages/DealStories.jsx';
 import About from './pages/About.jsx';
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/tools" element={<Tools />} />
           <Route path="/proposal-generator" element={<ProposalGenerator />} />
+          <Route path="/roi-calculator" element={<RoiCalculator />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/deal-stories" element={<DealStories />} />
           <Route path="/about" element={<About />} />

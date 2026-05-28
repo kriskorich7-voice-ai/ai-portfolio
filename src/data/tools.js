@@ -12,6 +12,18 @@ export const tools = [
     status: 'Live',
   },
   {
+    slug: 'roi-calculator',
+    name: 'ROI Calculator',
+    category: 'professional',
+    tagline: 'Project the value of Deepgram for your contact center.',
+    description:
+      'Calculate the projected value of Deepgram for your contact center.',
+    tags: ['Sales', 'Contact Center', 'Voice AI'],
+    accent: 'from-accent-indigo/40 to-accent-violet/20',
+    href: '/roi-calculator',
+    status: 'Live',
+  },
+  {
     slug: 'voice-agent',
     name: 'Voice AI Demo',
     category: 'professional',
