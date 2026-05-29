@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import PageHeader from '../components/PageHeader.jsx';
 
 const DEEPGRAM_KEY = import.meta.env.VITE_DEEPGRAM_API_KEY;
-const ANTHROPIC_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
 const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 
 const SYSTEM_PROMPT = `You are an expert B2B sales and partnerships professional. The user will describe a prospect or partner company. Your job is to:
@@ -196,24 +195,14 @@ export default function VoiceProspecting() {
   async function handleGenerate() {
     const transcript = editedTranscript.trim();
     if (!transcript) return;
-    if (!ANTHROPIC_KEY) {
-      setError(
-        'Missing VITE_ANTHROPIC_API_KEY. Add it to your .env to enable Claude.'
-      );
-      setPhase('error');
-      return;
-    }
     setError(null);
     setPhase('generating');
 
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetch('/api/anthropic', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-api-key': ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({
           model: CLAUDE_MODEL,
