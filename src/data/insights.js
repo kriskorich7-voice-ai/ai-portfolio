@@ -156,6 +156,88 @@ This portfolio is a work in progress. More tools coming.
     externalUrl:
       'https://deepgram.com/learn/ai-concierge-redefines-hospitality-and-customer-loyalty-worldwide',
   },
+  {
+    slug: 'talkdesk-cognizant-alliance',
+    title:
+      'Talkdesk and Cognizant Team Up to Accelerate AI-Powered Customer Experience',
+    date: '2023-06-01',
+    category: 'Partnerships',
+    excerpt:
+      'Talkdesk and Cognizant formed a strategic alliance to help enterprises accelerate AI-powered CX transformation at scale.',
+    external: true,
+    externalUrl:
+      'https://www.talkdesk.com/news-and-press/press-releases/cognizant-alliance/',
+  },
+  {
+    slug: 'talkdesk-aws-patient-care',
+    title:
+      "Enhancing Patient Care with Talkdesk's AI-Powered Contact Center",
+    date: '2025-01-10',
+    category: 'Partnerships',
+    excerpt:
+      "Published on the AWS Partner Network blog — how Talkdesk's AI-powered contact center is improving patient care and healthcare CX.",
+    external: true,
+    externalUrl:
+      'https://aws.amazon.com/blogs/apn/enhancing-patient-care-with-talkdesks-ai-powered-contact-center/',
+  },
+  {
+    slug: 'talkdesk-fedramp-authorization',
+    title:
+      'Talkdesk Achieves Full FedRAMP Authorization for CX Cloud Government Edition',
+    date: '2023-04-01',
+    category: 'Partnerships',
+    excerpt:
+      'Talkdesk earned full FedRAMP authorization, unlocking AI-powered contact center capabilities for U.S. federal government agencies.',
+    external: true,
+    externalUrl:
+      'https://www.talkdesk.com/news-and-press/press-releases/fedramp-authorization/',
+  },
+  {
+    slug: 'talkdesk-aws-financial-services-competency',
+    title: 'Talkdesk Achieves AWS Financial Services ISV Competency',
+    date: '2023-03-01',
+    category: 'Partnerships',
+    excerpt:
+      'Talkdesk earned the AWS Financial Services ISV Competency, validating its ability to help financial institutions and insurance companies deliver connected, personalized experiences.',
+    external: true,
+    externalUrl:
+      'https://www.talkdesk.com/news-and-press/press-releases/aws-financial-services-competency/',
+  },
+  {
+    slug: 'talkdesk-aws-healthcare-isv-competency',
+    title: 'Talkdesk Achieves AWS Healthcare ISV Competency',
+    date: '2023-02-01',
+    category: 'Partnerships',
+    excerpt:
+      'Talkdesk earned the AWS Healthcare ISV Competency, recognizing its work enhancing provider operations and patient experiences on AWS.',
+    external: true,
+    externalUrl:
+      'https://www.talkdesk.com/news-and-press/press-releases/aws-healthcare-isv-competency/',
+  },
+  {
+    slug: 'talkdesk-microsoft-partner-of-year',
+    title:
+      'Talkdesk Recognized as Microsoft Digital Native 2023 Partner of the Year',
+    date: '2023-07-01',
+    category: 'Partnerships',
+    excerpt:
+      "Talkdesk was named Microsoft's Digital Native Partner of the Year, recognizing the depth of the joint go-to-market motion and customer impact.",
+    external: true,
+    externalUrl:
+      'https://www.talkdesk.com/news-and-press/press-releases/talkdesk-microsoft-award/',
+  },
+  {
+    slug: 'talkdesk-epic-pals-2023',
+    title:
+      "Talkdesk and Epic Enter New Collaboration with the Launch of Epic's Pals Program",
+    date: '2023-05-01',
+    category: 'Partnerships',
+    excerpt:
+      "Talkdesk and Epic launched a new collaboration through Epic's Pals program, deepening the integration between healthcare CX and clinical workflows.",
+    external: true,
+    externalUrl:
+      'https://www.talkdesk.com/news-and-press/press-releases/epic-pal-2023/',
+  },
 ];
 
 export function findInsight(slug) {
