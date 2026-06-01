@@ -161,8 +161,16 @@ export function generateRoiReport(payload) {
     pageWidth,
     pageHeight,
     margin,
+    inputs,
     rows,
     metrics,
+  });
+
+  doc.addPage();
+  renderSolutionPage(doc, {
+    pageWidth,
+    pageHeight,
+    margin,
     sections,
   });
 
@@ -356,7 +364,7 @@ function renderInsightsPage(doc, { pageWidth, margin, company, industry, inputs,
   }
 }
 
-function renderValuePage(doc, { pageWidth, margin, rows, metrics, sections }) {
+function renderValuePage(doc, { pageWidth, pageHeight, margin, inputs, rows, metrics }) {
   let y = margin + 8;
 
   drawHeaderBar(doc, { pageWidth, margin, eyebrow: 'Section 3' });
@@ -368,98 +376,57 @@ function renderValuePage(doc, { pageWidth, margin, rows, metrics, sections }) {
   doc.text('Your Projected Annual Value from Deepgram', margin, y);
   y += 12;
   drawAccentRule(doc, { margin, y });
-  y += 16;
+  y += 20;
 
-  // Metric strip
-  const stripY = y + 6;
-  const stripHeight = 56;
-  doc.setFillColor(245, 248, 252);
-  doc.rect(margin, stripY, pageWidth - margin * 2, stripHeight, 'F');
-  doc.setDrawColor(...GREEN);
-  doc.setLineWidth(0.8);
-  doc.line(margin, stripY, margin, stripY + stripHeight);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text('TOTAL ANNUAL VALUE', margin + 16, stripY + 20);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(24);
-  doc.setTextColor(...NAVY);
-  doc.text(formatCurrency(metrics.totalAnnualValue), margin + 16, stripY + 44);
-
-  const rightCol = pageWidth - margin - 16;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.setTextColor(...MUTED);
-  doc.text(
-    `Payback: ${
-      metrics.paybackMonths === null
-        ? '—'
-        : metrics.paybackMonths < 1
-          ? '< 1 month'
-          : `${metrics.paybackMonths.toFixed(1)} months`
-    }`,
-    rightCol,
-    stripY + 20,
-    { align: 'right' }
+  const intro = doc.splitTextToSize(
+    `The math behind each projected outcome. Calculations apply industry benchmarks to your inputs: ${formatNumber(inputs.agents)} agents, ${formatNumber(inputs.monthlyCalls)} monthly calls, ${formatNumber(inputs.aht)} min AHT, ${formatCurrency(inputs.agentCost)} fully burdened annual agent cost.`,
+    pageWidth - margin * 2
   );
-  doc.text(
-    `${formatNumber(metrics.callsPerYear)} calls/yr  ·  ${formatNumber(Math.round(metrics.annualHours))} audio hrs/yr`,
-    rightCol,
-    stripY + 38,
-    { align: 'right' }
-  );
-  doc.text(
-    `Deepgram annual run-rate: ${formatCurrency(metrics.annualDeepgramCost)}`,
-    rightCol,
-    stripY + 52,
-    { align: 'right' }
-  );
+  doc.text(intro, margin, y);
+  y += intro.length * 13 + 14;
 
-  y = stripY + stripHeight + 22;
-
-  // ROI table
-  const body = rows.map(({ goal, annualValue }) => [
-    goal.title,
-    goal.benchmarkLabel,
-    formatCurrency(annualValue),
-  ]);
-  if (body.length === 0) {
-    body.push(['—', 'No outcomes selected', '—']);
+  if (rows.length === 0) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.setTextColor(...MUTED);
+    doc.text(
+      'No outcomes selected — return to Step 2 of the calculator to model projected value.',
+      margin,
+      y
+    );
+    return;
   }
-  body.push(['TOTAL', '', formatCurrency(metrics.totalAnnualValue)]);
 
-  autoTable(doc, {
-    startY: y,
-    head: [['Outcome', 'Industry benchmark assumption', 'Annual value']],
-    body,
-    theme: 'grid',
-    headStyles: {
-      fillColor: NAVY,
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      fontSize: 10,
-    },
-    bodyStyles: { fontSize: 10, cellPadding: 7, textColor: TEXT, lineColor: RULE },
-    alternateRowStyles: { fillColor: [248, 250, 253] },
-    columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 150 },
-      2: { halign: 'right', cellWidth: 95, fontStyle: 'bold' },
-    },
-    didParseCell: (data) => {
-      if (data.row.index === body.length - 1) {
-        data.cell.styles.fillColor = NAVY;
-        data.cell.styles.textColor = [255, 255, 255];
-        data.cell.styles.fontStyle = 'bold';
-      }
-    },
-    margin: { left: margin, right: margin },
-  });
-  y = doc.lastAutoTable.finalY + 28;
+  for (const { goal } of rows) {
+    const calc = buildGoalCalculation(goal.id, inputs);
+    if (!calc) continue;
+    y = renderCalculationBlock(doc, {
+      pageWidth,
+      pageHeight,
+      margin,
+      y,
+      title: calc.title,
+      lines: calc.lines,
+      valueLine: calc.valueLine,
+    });
+  }
 
-  drawHeaderBar(doc, { pageWidth, margin, eyebrow: 'Section 4', topY: y });
+  // Total Annual Value strip at the bottom of Section 3
+  const stripHeight = 64;
+  if (y + stripHeight > pageHeight - 70) {
+    doc.addPage();
+    y = margin + 8;
+  }
+  renderTotalStrip(doc, { pageWidth, margin, y, metrics, stripHeight });
+}
+
+function renderSolutionPage(doc, { pageWidth, pageHeight, margin, sections }) {
+  let y = margin + 8;
+
+  drawHeaderBar(doc, { pageWidth, margin, eyebrow: 'Section 4' });
   y += 24;
 
   doc.setFont('helvetica', 'bold');
@@ -497,6 +464,11 @@ function renderValuePage(doc, { pageWidth, margin, rows, metrics, sections }) {
 
   for (const item of renderable) {
     const lines = doc.splitTextToSize(item.body, pageWidth - margin * 2 - 14);
+    const blockHeight = 18 + lines.length * 13 + 6;
+    if (y + blockHeight > pageHeight - 70) {
+      doc.addPage();
+      y = margin + 8;
+    }
     doc.setFillColor(...GREEN);
     doc.rect(margin, y - 9, 4, 14, 'F');
 
@@ -510,8 +482,213 @@ function renderValuePage(doc, { pageWidth, margin, rows, metrics, sections }) {
     doc.setTextColor(...TEXT);
     doc.text(lines, margin + 14, y + 14);
 
-    y += 18 + lines.length * 13 + 6;
+    y += blockHeight;
   }
+}
+
+function renderCalculationBlock(doc, { pageWidth, pageHeight, margin, y, title, lines, valueLine }) {
+  const boxPadding = 10;
+  const boxInnerWidth = pageWidth - margin * 2 - boxPadding * 2;
+
+  // Pre-wrap to compute the block height before drawing the background.
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(9);
+  const wrappedBody = lines.map((line) =>
+    doc.splitTextToSize(line, boxInnerWidth)
+  );
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(10);
+  const wrappedValue = doc.splitTextToSize(valueLine, boxInnerWidth);
+
+  const bodyLineHeight = 12;
+  const valueLineHeight = 14;
+  const bodyHeight = wrappedBody.reduce(
+    (sum, w) => sum + w.length * bodyLineHeight,
+    0
+  );
+  const valueHeight = wrappedValue.length * valueLineHeight;
+  const boxHeight = boxPadding * 2 + bodyHeight + valueHeight + 4;
+  const titleHeight = 8;
+  const blockHeight = titleHeight + 6 + boxHeight + 12;
+
+  if (y + blockHeight > pageHeight - 70) {
+    doc.addPage();
+    y = margin + 8;
+  }
+
+  // Goal title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...NAVY);
+  doc.text(title, margin, y);
+
+  // Background box
+  const boxY = y + 6;
+  doc.setFillColor(245, 247, 251);
+  doc.roundedRect(margin, boxY, pageWidth - margin * 2, boxHeight, 6, 6, 'F');
+  doc.setFillColor(...GREEN);
+  doc.rect(margin, boxY, 3, boxHeight, 'F');
+
+  // Body lines in courier
+  let cursorY = boxY + boxPadding + bodyLineHeight - 3;
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...TEXT);
+  for (const wrapped of wrappedBody) {
+    for (const text of wrapped) {
+      doc.text(text, margin + boxPadding, cursorY);
+      cursorY += bodyLineHeight;
+    }
+  }
+
+  // Final value line in bold courier green
+  cursorY += 2;
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(...GREEN);
+  for (const text of wrappedValue) {
+    doc.text(text, margin + boxPadding, cursorY);
+    cursorY += valueLineHeight;
+  }
+
+  return boxY + boxHeight + 14;
+}
+
+function renderTotalStrip(doc, { pageWidth, margin, y, metrics, stripHeight }) {
+  doc.setFillColor(...NAVY);
+  doc.rect(margin, y, pageWidth - margin * 2, stripHeight, 'F');
+  doc.setFillColor(...GREEN);
+  doc.rect(margin, y, 4, stripHeight, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...GREEN);
+  doc.text('TOTAL ANNUAL VALUE', margin + 18, y + 22);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(26);
+  doc.setTextColor(255, 255, 255);
+  doc.text(formatCurrency(metrics.totalAnnualValue), margin + 18, y + 50);
+
+  const rightX = pageWidth - margin - 18;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(200, 210, 225);
+  doc.text(
+    `Payback: ${
+      metrics.paybackMonths === null
+        ? '—'
+        : metrics.paybackMonths < 1
+          ? '< 1 month'
+          : `${metrics.paybackMonths.toFixed(1)} months`
+    }`,
+    rightX,
+    y + 22,
+    { align: 'right' }
+  );
+  doc.text(
+    `${formatNumber(metrics.callsPerYear)} calls/yr  ·  ${formatNumber(Math.round(metrics.annualHours))} audio hrs/yr`,
+    rightX,
+    y + 38,
+    { align: 'right' }
+  );
+  doc.text(
+    `Deepgram annual run-rate: ${formatCurrency(metrics.annualDeepgramCost)}`,
+    rightX,
+    y + 54,
+    { align: 'right' }
+  );
+}
+
+function buildGoalCalculation(goalId, inputs) {
+  const { monthlyCalls, aht, agents, agentCost } = inputs;
+
+  if (goalId === 'aht') {
+    const minutesSaved = monthlyCalls * aht * 0.15;
+    const hoursSaved = minutesSaved / 60;
+    const agentsFreed = hoursSaved / 160;
+    const annualValue = agentsFreed * agentCost;
+    return {
+      title: 'Reduce Average Handle Time',
+      lines: [
+        `${formatNumber(monthlyCalls)} calls/month × ${formatNumber(aht)} min AHT × 15% reduction = ${formatNumber(Math.round(minutesSaved))} minutes saved/month`,
+        `÷ 60 = ${formatNumber(Math.round(hoursSaved))} hrs/month ÷ 160 hrs/agent = ${formatDecimal(agentsFreed)} agent-equivalents`,
+      ],
+      valueLine: `× ${formatCurrency(agentCost)} = ${formatCurrency(annualValue)} projected annual value`,
+    };
+  }
+
+  if (goalId === 'deflection') {
+    const annualCalls = monthlyCalls * 12;
+    const deflected = annualCalls * 0.3;
+    const annualValue = deflected * 11.66;
+    return {
+      title: 'Deflect Calls with Self-Service',
+      lines: [
+        `${formatNumber(monthlyCalls)} calls/month × 12 months × 30% containment = ${formatNumber(Math.round(deflected))} deflected calls/year`,
+        `× $11.66 savings per call ($13.50 human − $1.84 self-service)`,
+      ],
+      valueLine: `= ${formatCurrency(annualValue)} projected annual value`,
+    };
+  }
+
+  if (goalId === 'acw') {
+    const annualCalls = monthlyCalls * 12;
+    const hoursPerCall = (aht * 0.2 * 0.4) / 60;
+    const hourlyRate = agentCost / 2080;
+    const annualValue = annualCalls * hoursPerCall * hourlyRate;
+    return {
+      title: 'Reduce After-Call Work',
+      lines: [
+        `${formatNumber(monthlyCalls)} calls/month × 12 months = ${formatNumber(annualCalls)} calls/year`,
+        `× (${formatNumber(aht)} min × 20% ACW × 40% reduction ÷ 60) × (${formatCurrency(agentCost)} ÷ 2,080)`,
+      ],
+      valueLine: `= ${formatCurrency(annualValue)} projected annual value`,
+    };
+  }
+
+  if (goalId === 'qa') {
+    const totalHours = agents * 2 * 52;
+    const hourlyRate = agentCost / 2080;
+    const annualValue = totalHours * hourlyRate;
+    return {
+      title: 'Improve QA & Compliance Coverage',
+      lines: [
+        `${formatNumber(agents)} agents × 2 hrs/week × 52 weeks = ${formatNumber(totalHours)} QA hours/year`,
+        `× (${formatCurrency(agentCost)} ÷ 2,080 hrs) = ${formatCurrencyCents(hourlyRate)}/hr`,
+      ],
+      valueLine: `= ${formatCurrency(annualValue)} projected annual value`,
+    };
+  }
+
+  if (goalId === 'ramp') {
+    const agentsHired = agents * 0.3;
+    const annualValue = agentsHired * (3.5 / 52) * agentCost;
+    return {
+      title: 'Reduce Agent Ramp Time',
+      lines: [
+        `${formatNumber(agents)} agents × 30% attrition = ${formatDecimal(agentsHired)} agents hired/year`,
+        `× (3.5 weeks ÷ 52 weeks) × ${formatCurrency(agentCost)}`,
+      ],
+      valueLine: `= ${formatCurrency(annualValue)} projected annual value`,
+    };
+  }
+
+  if (goalId === 'fcr') {
+    const annualCalls = monthlyCalls * 12;
+    const eliminated = annualCalls * 0.1;
+    const annualValue = eliminated * 13.5;
+    return {
+      title: 'Improve First Call Resolution',
+      lines: [
+        `${formatNumber(monthlyCalls)} calls/month × 12 months × 10% FCR improvement = ${formatNumber(eliminated)} fewer repeat calls/year`,
+        `× $13.50 cost per call`,
+      ],
+      valueLine: `= ${formatCurrency(annualValue)} projected annual value`,
+    };
+  }
+
+  return null;
 }
 
 function renderGoalNarrative(goal, inputs) {
@@ -578,4 +755,20 @@ function formatCurrency(value) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat('en-US').format(value || 0);
+}
+
+function formatDecimal(value) {
+  const rounded = Math.round((value || 0) * 10) / 10;
+  return Number.isInteger(rounded)
+    ? rounded.toString()
+    : rounded.toFixed(1);
+}
+
+function formatCurrencyCents(value) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value || 0);
 }
