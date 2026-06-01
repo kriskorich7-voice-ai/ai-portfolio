@@ -36,16 +36,16 @@ export const tools = [
     status: 'Live',
   },
   {
-    slug: 'voice-agent',
-    name: 'Voice AI Demo',
+    slug: 'voice-ai-demos',
+    name: 'Voice AI Demos',
     category: 'professional',
-    tagline: 'Realtime voice agent for inbound qualification.',
+    tagline: 'Live voice agent demos across healthcare, airlines, and banking.',
     description:
-      'A low-latency voice agent that qualifies inbound leads, books meetings, and hands off cleanly to a human.',
+      'Live voice agent demos across healthcare, airlines, and banking — powered by Deepgram.',
     tags: ['Voice AI', 'Realtime', 'Deepgram'],
     accent: 'from-accent-violet/40 to-accent-blue/20',
-    href: '#',
-    status: 'Coming soon',
+    href: '/demos',
+    status: 'Live',
   },
   {
     slug: 'woodworking-guide-builder',
