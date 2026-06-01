@@ -1,124 +1,146 @@
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
+// Deepgram palette
 const NAVY = [10, 15, 30];
-const NAVY_SOFT = [40, 50, 75];
 const GREEN = [0, 229, 160];
 const TEXT = [25, 32, 45];
 const MUTED = [110, 122, 145];
 const RULE = [220, 225, 235];
+const STAT_BG = [245, 245, 245];
+const SOFT_GRAY = [85, 95, 115];
 
-const INDUSTRY_LANDSCAPE = {
-  'Financial Services': [
-    ['Average cost per call', '$15.80'],
-    ['Average abandonment rate', '12%'],
-    [
-      'Digital deflection opportunity',
-      '45% of calls are routine inquiries',
-    ],
-    [
-      'Compliance cost',
-      '$4.2M average annual spend on QA and compliance monitoring',
-    ],
-  ],
-  Healthcare: [
-    ['Average cost per call', '$18.50'],
-    ['Average abandonment rate', '17%'],
-    [
-      'Patient satisfaction impact',
-      '34% of patients cite phone experience as key satisfaction driver',
-    ],
-    [
-      'Scheduling and billing',
-      'Account for 60% of inbound call volume',
-    ],
-  ],
-  Retail: [
-    ['Average cost per call', '$13.20'],
-    ['Average abandonment rate', '9%'],
-    ['Seasonal volume spikes', 'Up to 400% during peak periods'],
-    [
-      'Routine inquiries',
-      '52% of retail calls are order status, returns, or routine inquiries',
-    ],
-  ],
-  Telecom: [
-    ['Average cost per call', '$14.50'],
-    ['Average abandonment rate', '14%'],
-    ['First call resolution rate', 'Industry average 71%'],
-    ['Agent churn rate', '35% annually, highest of any industry'],
-  ],
-  Government: [
-    ['Average cost per call', '$22.00'],
-    ['Average abandonment rate', '19%'],
-    ['Average wait time', '8.3 minutes'],
-    ['Citizen satisfaction', '63/100 (lowest of any sector)'],
-  ],
-  Other: [
-    ['Average cost per call', '$13.50'],
-    ['Average abandonment rate', '11%'],
-    ['Industry average FCR', '74%'],
-    ['Average AHT', '6.2 minutes'],
-  ],
-};
+export const LANDSCAPE_PROMPT_SYSTEM =
+  'You are a research analyst writing an executive briefing on contact center trends. Write in professional, authoritative prose. No bullet points. No headers within your response. 3-4 paragraphs only.';
 
-const GOAL_NARRATIVES = {
-  aht: ({ monthlyCalls, agentsFreed }) =>
-    `Organizations deploying real-time AI transcription and agent assist report 20-35% reductions in average handle time. At scale, a 15% AHT reduction across ${formatNumber(monthlyCalls)} monthly calls represents significant agent capacity recaptured — the equivalent of ${agentsFreed.toFixed(1)} full-time agents.`,
-  deflection: () =>
-    'Gartner research shows the average cost of a human-assisted call is $13.50 versus $1.84 for self-service. With 30% containment, organizations of your scale can redirect millions in annual spend toward higher-value interactions.',
-  acw: () =>
-    'After-call work accounts for 15-25% of total handle time in most contact centers. AI-generated call summaries eliminate manual note-taking, cutting ACW by 40% and freeing agents to take the next call faster.',
-  qa: () =>
-    'Most QA teams manually review 3-5% of calls. AI-powered monitoring covers 100% of interactions, surfacing compliance risks, coaching opportunities, and customer sentiment at a scale no human team can match.',
-  ramp: () =>
-    'BCG research shows AI-assisted onboarding reduces agent ramp time from 9.2 to 5.7 weeks — a 38% improvement. With average industry attrition of 30%, this compounds significantly across your agent base each year.',
-  fcr: () =>
-    'A 10% improvement in FCR reduces repeat call volume proportionally, cutting cost per resolution and improving customer satisfaction scores. AI-powered guidance and real-time transcription are the most common drivers of FCR improvement.',
+export function buildLandscapePrompt(industry) {
+  const ind = industry || 'general contact center';
+  return `Write a 3-4 paragraph industry landscape section for a contact center AI research report targeting the ${ind} industry. Cover: current state of contact center operations in this industry, key challenges they face (cost, staffing, customer expectations, compliance), where AI and voice technology are having the most impact, and what leading organizations in this industry are doing to stay ahead. Be specific to ${ind}. Use real industry context. Write as if this is a page in a Goldman Sachs or McKinsey research brief.`;
+}
+
+const GOAL_DETAILS = {
+  aht: {
+    title: 'Reduce Average Handle Time',
+    paragraph:
+      'Real-time AI transcription and agent assist are the most proven levers for handle time reduction in modern contact centers. Organizations deploying these capabilities report 20-35% reductions in average handle time — driven by instant access to relevant information, automated call categorization, and guided next-best-action recommendations that eliminate agent search time during live calls.',
+    statNumber: '20-35%',
+    statLabel: 'Industry benchmark AHT reduction with AI agent assist',
+  },
+  deflection: {
+    title: 'Deflect Calls with Self-Service',
+    paragraph:
+      'The cost differential between human-assisted and self-service interactions remains one of the most compelling economic arguments for AI investment. Gartner research consistently shows human-assisted calls averaging $13.50 per interaction versus $1.84 for fully self-served interactions — a 7x cost difference. Organizations achieving 30% containment rates through AI voice agents are realizing tens of millions in annual savings at scale.',
+    statNumber: '7x',
+    statLabel:
+      'Cost difference between human-assisted ($13.50) and self-service ($1.84) interactions (Gartner)',
+  },
+  acw: {
+    title: 'Reduce After-Call Work',
+    paragraph:
+      'After-call work consumes 15-25% of total agent time in most contact centers — time spent manually logging notes, updating CRM records, and summarizing call outcomes. AI-generated call summaries delivered instantly at the end of every interaction eliminate this entirely, reducing ACW by up to 40% and allowing agents to handle more calls per shift without additional headcount.',
+    statNumber: '40%',
+    statLabel: 'ACW reduction through AI-generated call summaries',
+  },
+  qa: {
+    title: 'Improve QA & Compliance Coverage',
+    paragraph:
+      'Traditional QA models sample 3-5% of calls — leaving 95% of customer interactions unmonitored and compliance risks undetected. AI-powered speech analytics changes this equation entirely, enabling 100% call coverage at a fraction of the cost of manual review. Organizations in regulated industries are increasingly treating full-coverage AI monitoring not as a cost center but as a risk management imperative.',
+    statNumber: '95%',
+    statLabel: 'Of calls go unmonitored in traditional QA programs',
+  },
+  ramp: {
+    title: 'Reduce Agent Ramp Time',
+    paragraph:
+      'Agent attrition averages 30-45% annually in contact centers — making ramp time one of the most significant hidden costs in the industry. BCG research shows AI-assisted onboarding reduces ramp time from 9.2 to 5.7 weeks, a 38% improvement driven by real-time guidance, automated coaching, and instant access to knowledge bases during live calls. At scale, this compounds significantly across a high-attrition workforce.',
+    statNumber: '38%',
+    statLabel: 'Ramp time reduction with AI-assisted onboarding (BCG)',
+  },
+  fcr: {
+    title: 'Improve First Call Resolution',
+    paragraph:
+      'First call resolution is the single metric most correlated with customer satisfaction and contact center cost efficiency. Every repeat call represents a failure of the first interaction — and at $13.50 per call, repeat contacts are expensive. AI-powered real-time guidance, dynamic knowledge surfacing, and post-call analytics have been shown to improve FCR by 10-15%, meaningfully reducing repeat call volume and the cost it carries.',
+    statNumber: '10-15%',
+    statLabel: 'FCR improvement with AI-powered agent guidance',
+  },
 };
 
 const PRODUCT_NARRATIVES = {
   'flux-stt': {
     name: 'Flux STT',
     body: "Deepgram's fastest, most accurate streaming model. Built for real-time transcription in live call environments — agent assist, virtual agents, and conversation analytics.",
+    family: 'stt',
   },
   'nova-3-batch': {
     name: 'Nova-3 Batch STT',
     body: 'Industry-leading accuracy for post-call processing. Ideal for call recording transcription, QA automation, and compliance monitoring at scale.',
+    family: 'stt',
   },
   'flux-tts': {
     name: 'Flux TTS',
     body: 'Natural, low-latency text-to-speech for AI voice agents. Indistinguishable from human speech in live customer interactions.',
+    family: 'tts',
   },
   'voice-agent': {
     name: 'Voice Agent API',
     body: 'End-to-end voice agent infrastructure. Build, deploy, and scale AI agents that handle real customer conversations — no stitching required.',
+    family: 'stt',
   },
   keyterm: {
     name: 'Keyterm Prompting',
     body: 'Boost transcription accuracy for industry-specific terminology, product names, and compliance language.',
+    family: 'stt',
   },
   'diarization-stream': {
     name: 'Speaker Diarization',
     body: 'Automatically identify and label each speaker in a conversation — essential for QA, coaching, and compliance use cases.',
+    family: 'stt',
   },
   'diarization-batch': {
     name: 'Speaker Diarization',
     body: 'Automatically identify and label each speaker in a conversation — essential for QA, coaching, and compliance use cases.',
+    family: 'stt',
   },
   redaction: {
     name: 'Redaction',
     body: 'Automatically remove PII and sensitive data from transcripts in real time — critical for financial services, healthcare, and government.',
+    family: 'stt',
   },
   summarization: {
     name: 'Summarization',
     body: 'AI-generated call summaries delivered instantly after every call. Eliminate after-call work and create a searchable record of every customer interaction.',
+    family: 'stt',
   },
   sentiment: {
     name: 'Sentiment Analysis',
     body: 'Real-time detection of caller sentiment across 100% of interactions. Identify at-risk customers, escalation triggers, and coaching opportunities at scale.',
+    family: 'stt',
   },
 };
+
+function sttComparison(provider) {
+  switch (provider) {
+    case 'Google':
+      return 'vs. Google: Deepgram delivers up to 40% lower word error rates on conversational audio, 3x faster processing speeds, and purpose-built models for contact center acoustics that Google\'s general-purpose models were not designed for.';
+    case 'AWS':
+      return 'vs. AWS: Deepgram\'s Nova-3 and Flux models consistently outperform Amazon Transcribe on accuracy benchmarks for telephony audio, with significantly lower latency — critical for real-time agent assist and voice agent use cases.';
+    case 'Azure':
+    case 'Microsoft':
+      return 'vs. Azure: Deepgram offers superior accuracy on accented speech and noisy call center environments, with a simpler API and faster time-to-value than Microsoft\'s Cognitive Services stack.';
+    case 'Nuance':
+      return 'vs. Nuance: Deepgram\'s cloud-native architecture delivers the accuracy of legacy Nuance models at a fraction of the cost and without the implementation complexity of on-premise deployments.';
+    default:
+      return 'Deepgram\'s API-first architecture enables rapid deployment — most customers go from API key to production in under two weeks, with no infrastructure to manage.';
+  }
+}
+
+function ttsComparison(provider) {
+  if (provider === 'ElevenLabs') {
+    return 'vs. ElevenLabs: Deepgram\'s Flux TTS delivers comparable voice quality at significantly lower latency — purpose-built for real-time conversational AI where response speed directly impacts customer experience.';
+  }
+  if (provider === 'Google' || provider === 'AWS' || provider === 'Azure') {
+    return `vs. ${provider}: Deepgram\'s Flux TTS produces more natural, conversational speech optimized for contact center interactions — moving beyond the robotic cadence that characterizes legacy cloud TTS providers.`;
+  }
+  return 'Deepgram\'s Flux TTS can be deployed alongside any existing infrastructure, enabling natural AI voice interactions without replacing current systems.';
+}
 
 export function generateRoiReport(payload) {
   const {
@@ -129,6 +151,8 @@ export function generateRoiReport(payload) {
     metrics,
     rows,
     sections,
+    tech,
+    landscapeProse,
   } = payload;
 
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
@@ -136,42 +160,43 @@ export function generateRoiReport(payload) {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 56;
 
-  renderCoverPage(doc, {
+  renderCoverPage(doc, { pageWidth, pageHeight, margin, recipient, company, industry });
+
+  doc.addPage();
+  renderIndustryLandscape(doc, {
     pageWidth,
     pageHeight,
     margin,
-    recipient,
-    company,
     industry,
+    landscapeProse,
   });
 
   doc.addPage();
-  renderInsightsPage(doc, {
+  renderStrategicGoals(doc, {
     pageWidth,
     pageHeight,
     margin,
-    company,
-    industry,
-    inputs,
     rows,
   });
 
   doc.addPage();
-  renderValuePage(doc, {
-    pageWidth,
-    pageHeight,
-    margin,
-    inputs,
-    rows,
-    metrics,
-  });
-
-  doc.addPage();
-  renderSolutionPage(doc, {
+  renderSolution(doc, {
     pageWidth,
     pageHeight,
     margin,
     sections,
+    tech: tech || {},
+  });
+
+  doc.addPage();
+  renderValueSummary(doc, {
+    pageWidth,
+    pageHeight,
+    margin,
+    inputs,
+    metrics,
+    rows,
+    company,
   });
 
   paintInteriorFooters(doc, { pageWidth, pageHeight, margin });
@@ -221,7 +246,6 @@ function renderCoverPage(doc, { pageWidth, pageHeight, margin, recipient, compan
   );
   doc.text(subtitleLines, margin, titleY + titleLines.length * 32 + 18);
 
-  // Recipient block
   const blockY = pageHeight - 220;
   doc.setDrawColor(...GREEN);
   doc.setLineWidth(0.8);
@@ -237,7 +261,7 @@ function renderCoverPage(doc, { pageWidth, pageHeight, margin, recipient, compan
   doc.setTextColor(255, 255, 255);
   const recipientLine = recipient?.name
     ? recipient.email
-      ? `${recipient.name}  ·  ${recipient.email}`
+      ? `${recipient.name}  |  ${recipient.email}`
       : recipient.name
     : '—';
   doc.text(recipientLine, margin, blockY + 18);
@@ -255,145 +279,84 @@ function renderCoverPage(doc, { pageWidth, pageHeight, margin, recipient, compan
     blockY + 56
   );
 
-  // Footer on cover page (lighter style than interior)
   doc.setFontSize(8);
   doc.setTextColor(170, 180, 200);
   doc.text(
-    'Prepared by Kris Korich  ·  Partnerships & BD  ·  Deepgram  ·  kriskorich.com',
+    'Prepared by Kris Korich  |  Partnerships & BD  |  Deepgram  |  kriskorich.com',
     margin,
     pageHeight - 36
   );
 }
 
-function renderInsightsPage(doc, { pageWidth, margin, company, industry, inputs, rows }) {
+function renderIndustryLandscape(doc, { pageWidth, pageHeight, margin, industry, landscapeProse }) {
   let y = margin + 8;
-
   drawHeaderBar(doc, { pageWidth, margin, eyebrow: 'Section 1' });
   y += 24;
 
-  const industryKey = INDUSTRY_LANDSCAPE[industry] ? industry : 'Other';
   const landscapeName = industry || 'Contact Center';
-
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
+  doc.setFontSize(20);
   doc.setTextColor(...NAVY);
-  doc.text(`The ${landscapeName} Contact Center Landscape`, margin, y);
+  doc.text(`The ${landscapeName} Landscape`, margin, y);
   y += 12;
-
   drawAccentRule(doc, { margin, y });
-  y += 18;
+  y += 22;
+
+  const paragraphs = (landscapeProse || '')
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...MUTED);
-  const intro = doc.splitTextToSize(
-    `Industry-wide benchmarks shaping ${landscapeName.toLowerCase()} customer service operations today. These reflect published research across enterprise contact center programs and inform the value model on the following pages.`,
-    pageWidth - margin * 2
-  );
-  doc.text(intro, margin, y);
-  y += intro.length * 13 + 12;
+  doc.setFontSize(11);
+  doc.setTextColor(...TEXT);
 
-  const landscapeRows = INDUSTRY_LANDSCAPE[industryKey];
-  autoTable(doc, {
-    startY: y,
-    head: [['Benchmark', 'Industry data point']],
-    body: landscapeRows,
-    theme: 'grid',
-    headStyles: {
-      fillColor: NAVY,
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      fontSize: 10,
-    },
-    bodyStyles: { fontSize: 10, cellPadding: 8, textColor: TEXT, lineColor: RULE },
-    alternateRowStyles: { fillColor: [248, 250, 253] },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 200 } },
-    margin: { left: margin, right: margin },
-  });
-  y = doc.lastAutoTable.finalY + 28;
+  const lineHeight = 16;
+  const maxWidth = pageWidth - margin * 2;
 
-  drawHeaderBar(doc, { pageWidth, margin, eyebrow: 'Section 2', topY: y });
-  y += 24;
+  for (const para of paragraphs) {
+    const wrapped = doc.splitTextToSize(para, maxWidth);
+    const blockHeight = wrapped.length * lineHeight + 12;
+    if (y + blockHeight > pageHeight - 70) {
+      doc.addPage();
+      y = margin + 8;
+    }
+    doc.text(wrapped, margin, y);
+    y += blockHeight;
+  }
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(...NAVY);
-  doc.text('Your Strategic Goals & The Data Behind Them', margin, y);
-  y += 12;
-  drawAccentRule(doc, { margin, y });
-  y += 20;
-
-  if (rows.length === 0) {
+  if (paragraphs.length === 0) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
     doc.setTextColor(...MUTED);
     doc.text(
-      'No outcomes selected in Step 2 of the calculator.',
+      'Industry landscape content could not be generated. Please try again.',
       margin,
       y
     );
-    return;
-  }
-
-  for (const { goal, annualValue } of rows) {
-    const narrative = renderGoalNarrative(goal, inputs);
-    const lines = doc.splitTextToSize(narrative, pageWidth - margin * 2);
-    const blockHeight = 16 + 6 + lines.length * 13 + 10;
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(...NAVY);
-    doc.text(goal.title, margin, y);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(...GREEN);
-    doc.text(
-      `Projected annual value: ${formatCurrency(annualValue)}`,
-      pageWidth - margin,
-      y,
-      { align: 'right' }
-    );
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(...TEXT);
-    doc.text(lines, margin, y + 16);
-
-    y += blockHeight;
   }
 }
 
-function renderValuePage(doc, { pageWidth, pageHeight, margin, inputs, rows, metrics }) {
+function renderStrategicGoals(doc, { pageWidth, pageHeight, margin, rows }) {
   let y = margin + 8;
-
-  drawHeaderBar(doc, { pageWidth, margin, eyebrow: 'Section 3' });
+  drawHeaderBar(doc, { pageWidth, margin, eyebrow: 'Section 2' });
   y += 24;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
+  doc.setFontSize(20);
   doc.setTextColor(...NAVY);
-  doc.text('Your Projected Annual Value from Deepgram', margin, y);
+  doc.text('Strategic Goals & The Data Behind Them', margin, y);
   y += 12;
   drawAccentRule(doc, { margin, y });
-  y += 20;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...MUTED);
-  const intro = doc.splitTextToSize(
-    `The math behind each projected outcome. Calculations apply industry benchmarks to your inputs: ${formatNumber(inputs.agents)} agents, ${formatNumber(inputs.monthlyCalls)} monthly calls, ${formatNumber(inputs.aht)} min AHT, ${formatCurrency(inputs.agentCost)} fully burdened annual agent cost.`,
-    pageWidth - margin * 2
-  );
-  doc.text(intro, margin, y);
-  y += intro.length * 13 + 14;
+  y += 22;
 
   if (rows.length === 0) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
     doc.setTextColor(...MUTED);
     doc.text(
-      'No outcomes selected — return to Step 2 of the calculator to model projected value.',
+      'No outcomes selected — return to Step 2 of the calculator to model strategic goals.',
       margin,
       y
     );
@@ -401,56 +364,103 @@ function renderValuePage(doc, { pageWidth, pageHeight, margin, inputs, rows, met
   }
 
   for (const { goal } of rows) {
-    const calc = buildGoalCalculation(goal.id, inputs);
-    if (!calc) continue;
-    y = renderCalculationBlock(doc, {
+    const details = GOAL_DETAILS[goal.id];
+    if (!details) continue;
+    y = renderGoalBlock(doc, {
       pageWidth,
       pageHeight,
       margin,
       y,
-      title: calc.title,
-      lines: calc.lines,
-      valueLine: calc.valueLine,
+      details,
     });
   }
+}
 
-  // Total Annual Value strip at the bottom of Section 3
-  const stripHeight = 64;
-  if (y + stripHeight > pageHeight - 70) {
+function renderGoalBlock(doc, { pageWidth, pageHeight, margin, y, details }) {
+  const maxWidth = pageWidth - margin * 2;
+
+  // Pre-measure
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  const wrappedBody = doc.splitTextToSize(details.paragraph, maxWidth);
+  const labelMaxWidth = maxWidth - 130;
+  doc.setFontSize(10);
+  const wrappedLabel = doc.splitTextToSize(details.statLabel, labelMaxWidth);
+
+  const titleHeight = 14;
+  const bodyHeight = wrappedBody.length * 14 + 6;
+  const boxHeight = Math.max(56, 18 + wrappedLabel.length * 12 + 14);
+  const blockHeight = titleHeight + 8 + bodyHeight + boxHeight + 18;
+
+  if (y + blockHeight > pageHeight - 70) {
     doc.addPage();
     y = margin + 8;
   }
-  renderTotalStrip(doc, { pageWidth, margin, y, metrics, stripHeight });
+
+  // Goal title in green
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...GREEN);
+  doc.text(details.title, margin, y);
+  y += 14;
+
+  // Paragraph
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(...TEXT);
+  doc.text(wrappedBody, margin, y + 4);
+  y += bodyHeight;
+
+  // Stat callout box
+  doc.setFillColor(...STAT_BG);
+  doc.rect(margin, y, maxWidth, boxHeight, 'F');
+  doc.setFillColor(...GREEN);
+  doc.rect(margin, y, 4, boxHeight, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(26);
+  doc.setTextColor(...GREEN);
+  doc.text(details.statNumber, margin + 18, y + boxHeight / 2 + 8);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...NAVY);
+  const labelY = y + boxHeight / 2 - (wrappedLabel.length - 1) * 6 + 1;
+  doc.text(wrappedLabel, margin + 130, labelY);
+
+  return y + boxHeight + 22;
 }
 
-function renderSolutionPage(doc, { pageWidth, pageHeight, margin, sections }) {
+function renderSolution(doc, { pageWidth, pageHeight, margin, sections, tech }) {
   let y = margin + 8;
-
-  drawHeaderBar(doc, { pageWidth, margin, eyebrow: 'Section 4' });
+  drawHeaderBar(doc, { pageWidth, margin, eyebrow: 'Section 3' });
   y += 24;
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
+  doc.setFontSize(20);
   doc.setTextColor(...NAVY);
-  doc.text('Your Recommended Deepgram Solution', margin, y);
+  doc.text('Recommended Deepgram Solution', margin, y);
   y += 12;
   drawAccentRule(doc, { margin, y });
-  y += 18;
+  y += 22;
 
-  const recommendedIds = [
-    ...sections.realtime.map((p) => p.id),
-    ...sections.batch.map((p) => p.id),
+  // Build de-duped product list across realtime + batch
+  const all = [
+    ...(sections?.realtime || []),
+    ...(sections?.batch || []),
   ];
   const seen = new Set();
-  const renderable = [];
-  for (const id of recommendedIds) {
-    if (seen.has(id)) continue;
-    seen.add(id);
-    const meta = PRODUCT_NARRATIVES[id];
-    if (meta) renderable.push(meta);
+  const products = [];
+  for (const item of all) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    const meta = PRODUCT_NARRATIVES[item.id];
+    if (meta) products.push({ id: item.id, ...meta });
   }
 
-  if (renderable.length === 0) {
+  const maxWidth = pageWidth - margin * 2;
+
+  if (products.length === 0) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
     doc.setTextColor(...MUTED);
@@ -459,250 +469,283 @@ function renderSolutionPage(doc, { pageWidth, pageHeight, margin, sections }) {
       margin,
       y
     );
-    return;
   }
 
-  for (const item of renderable) {
-    const lines = doc.splitTextToSize(item.body, pageWidth - margin * 2 - 14);
-    const blockHeight = 18 + lines.length * 13 + 6;
+  for (const p of products) {
+    const comparison =
+      p.family === 'tts'
+        ? ttsComparison(tech.tts || '')
+        : sttComparison(tech.stt || '');
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    const wrappedBody = doc.splitTextToSize(p.body, maxWidth);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    const wrappedComp = doc.splitTextToSize(comparison, maxWidth);
+
+    const blockHeight =
+      16 + wrappedBody.length * 14 + 8 + wrappedComp.length * 13 + 18;
     if (y + blockHeight > pageHeight - 70) {
       doc.addPage();
       y = margin + 8;
     }
-    doc.setFillColor(...GREEN);
-    doc.rect(margin, y - 9, 4, 14, 'F');
 
+    // Name in bold green
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(...NAVY);
-    doc.text(item.name, margin + 14, y);
+    doc.setFontSize(13);
+    doc.setTextColor(...GREEN);
+    doc.text(p.name, margin, y);
+    y += 16;
 
+    // Body
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setTextColor(...TEXT);
-    doc.text(lines, margin + 14, y + 14);
+    doc.text(wrappedBody, margin, y);
+    y += wrappedBody.length * 14 + 6;
 
-    y += blockHeight;
+    // Comparison line (italic gray)
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.setTextColor(...SOFT_GRAY);
+    doc.text(wrappedComp, margin, y);
+    y += wrappedComp.length * 13 + 18;
   }
-}
 
-function renderCalculationBlock(doc, { pageWidth, pageHeight, margin, y, title, lines, valueLine }) {
-  const boxPadding = 10;
-  const boxInnerWidth = pageWidth - margin * 2 - boxPadding * 2;
-
-  // Pre-wrap to compute the block height before drawing the background.
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  const wrappedBody = lines.map((line) =>
-    doc.splitTextToSize(line, boxInnerWidth)
-  );
-  doc.setFont('courier', 'bold');
-  doc.setFontSize(10);
-  const wrappedValue = doc.splitTextToSize(valueLine, boxInnerWidth);
-
-  const bodyLineHeight = 12;
-  const valueLineHeight = 14;
-  const bodyHeight = wrappedBody.reduce(
-    (sum, w) => sum + w.length * bodyLineHeight,
-    0
-  );
-  const valueHeight = wrappedValue.length * valueLineHeight;
-  const boxHeight = boxPadding * 2 + bodyHeight + valueHeight + 4;
-  const titleHeight = 8;
-  const blockHeight = titleHeight + 6 + boxHeight + 12;
-
-  if (y + blockHeight > pageHeight - 70) {
+  // Customer proof point
+  const proof =
+    "Deepgram powers voice AI for the world's leading contact center platforms, CCaaS providers, and enterprise AI builders — processing billions of minutes of audio annually across financial services, healthcare, retail, telecom, and government.";
+  const wrappedProof = doc.splitTextToSize(proof, maxWidth - 28);
+  const proofHeight = 24 + wrappedProof.length * 14 + 16;
+  if (y + proofHeight > pageHeight - 70) {
     doc.addPage();
     y = margin + 8;
   }
+  doc.setFillColor(...NAVY);
+  doc.rect(margin, y, maxWidth, proofHeight, 'F');
+  doc.setFillColor(...GREEN);
+  doc.rect(margin, y, 4, proofHeight, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...GREEN);
+  doc.text('CUSTOMER PROOF', margin + 18, y + 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text(wrappedProof, margin + 18, y + 36);
+}
 
-  // Goal title
+function renderValueSummary(doc, { pageWidth, pageHeight, margin, inputs, metrics, rows, company }) {
+  let y = margin + 8;
+  drawHeaderBar(doc, { pageWidth, margin, eyebrow: 'Section 4' });
+  y += 24;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.setTextColor(...NAVY);
+  doc.text('Value Summary', margin, y);
+  y += 12;
+  drawAccentRule(doc, { margin, y });
+  y += 22;
+
+  const maxWidth = pageWidth - margin * 2;
+
+  // Hero: Total Annual Value
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...MUTED);
+  doc.text('TOTAL PROJECTED ANNUAL VALUE', margin, y);
+  y += 8;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(34);
+  doc.setTextColor(...GREEN);
+  doc.text(formatCurrency(metrics.totalAnnualValue), margin, y + 28);
+  y += 50;
+
+  // Secondary metrics row
+  const metricsRow = [
+    {
+      label: 'Payback Period',
+      value:
+        metrics.paybackMonths === null
+          ? '—'
+          : metrics.paybackMonths < 1
+            ? '< 1 month'
+            : `${metrics.paybackMonths.toFixed(1)} months`,
+    },
+    {
+      label: 'Annual Calls Processed',
+      value: formatNumber(metrics.callsPerYear),
+    },
+    {
+      label: 'Annual Hours of Audio',
+      value: `${formatNumber(Math.round(metrics.annualHours))} hrs`,
+    },
+  ];
+
+  const colWidth = maxWidth / metricsRow.length;
+  metricsRow.forEach((m, i) => {
+    const cx = margin + colWidth * i;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...MUTED);
+    doc.text(m.label.toUpperCase(), cx, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.setTextColor(...NAVY);
+    doc.text(m.value, cx, y + 18);
+  });
+  y += 38;
+
+  // Divider
+  doc.setDrawColor(...RULE);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 18;
+
+  // Deepgram investment estimate
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(...NAVY);
+  doc.text('Estimated Deepgram Annual Investment', margin, y);
+  y += 16;
+
+  const includesDeflection = rows.some(({ goal }) => goal.id === 'deflection');
+  const monthlyCalls = inputs.monthlyCalls || 0;
+  const aht = inputs.aht || 0;
+  const annualAudioHours = (monthlyCalls * aht * 12) / 60;
+  const sttCost = annualAudioHours * 0.29;
+  const vaCost = includesDeflection
+    ? ((monthlyCalls * 0.3 * aht * 12) / 60) * 4.5
+    : 0;
+  const ttsCost = includesDeflection
+    ? (monthlyCalls * aht * 150 * 6 * 12 * 0.03) / 1000
+    : 0;
+  const totalInvestment = sttCost + vaCost + ttsCost;
+
+  const lineItems = [
+    { label: 'STT (Nova-3 Mono)', value: sttCost, note: `${formatNumber(Math.round(annualAudioHours))} hrs × $0.29/hr` },
+  ];
+  if (includesDeflection) {
+    lineItems.push({
+      label: 'Voice Agent API',
+      value: vaCost,
+      note: '30% of calls at $4.50/hr',
+    });
+    lineItems.push({
+      label: 'Flux TTS',
+      value: ttsCost,
+      note: '~150 wpm × 6 chars/word × $0.030/1k chars',
+    });
+  }
+
+  // Line items
+  doc.setFontSize(10);
+  for (const li of lineItems) {
+    if (y + 18 > pageHeight - 130) {
+      doc.addPage();
+      y = margin + 8;
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...TEXT);
+    doc.text(li.label, margin + 4, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...MUTED);
+    doc.setFontSize(8.5);
+    doc.text(li.note, margin + 4, y + 12);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...NAVY);
+    doc.text(formatCurrency(li.value), pageWidth - margin - 4, y, {
+      align: 'right',
+    });
+    y += 22;
+  }
+
+  // Total investment row
+  doc.setDrawColor(...RULE);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y - 4, pageWidth - margin, y - 4);
+  y += 6;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(...NAVY);
-  doc.text(title, margin, y);
+  doc.text('Total Estimated Investment', margin + 4, y);
+  doc.text(formatCurrency(totalInvestment), pageWidth - margin - 4, y, {
+    align: 'right',
+  });
+  y += 14;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  doc.text(
+    '* Based on list pricing. Volume discounts available.',
+    margin + 4,
+    y
+  );
+  y += 22;
 
-  // Background box
-  const boxY = y + 6;
-  doc.setFillColor(245, 247, 251);
-  doc.roundedRect(margin, boxY, pageWidth - margin * 2, boxHeight, 6, 6, 'F');
+  // ROI multiple
+  const roi = totalInvestment > 0 ? metrics.totalAnnualValue / totalInvestment : null;
+  doc.setFillColor(...STAT_BG);
+  doc.rect(margin, y, maxWidth, 56, 'F');
   doc.setFillColor(...GREEN);
-  doc.rect(margin, boxY, 3, boxHeight, 'F');
-
-  // Body lines in courier
-  let cursorY = boxY + boxPadding + bodyLineHeight - 3;
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...TEXT);
-  for (const wrapped of wrappedBody) {
-    for (const text of wrapped) {
-      doc.text(text, margin + boxPadding, cursorY);
-      cursorY += bodyLineHeight;
-    }
-  }
-
-  // Final value line in bold courier green
-  cursorY += 2;
-  doc.setFont('courier', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(...GREEN);
-  for (const text of wrappedValue) {
-    doc.text(text, margin + boxPadding, cursorY);
-    cursorY += valueLineHeight;
-  }
-
-  return boxY + boxHeight + 14;
-}
-
-function renderTotalStrip(doc, { pageWidth, margin, y, metrics, stripHeight }) {
-  doc.setFillColor(...NAVY);
-  doc.rect(margin, y, pageWidth - margin * 2, stripHeight, 'F');
-  doc.setFillColor(...GREEN);
-  doc.rect(margin, y, 4, stripHeight, 'F');
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(...GREEN);
-  doc.text('TOTAL ANNUAL VALUE', margin + 18, y + 22);
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(26);
-  doc.setTextColor(255, 255, 255);
-  doc.text(formatCurrency(metrics.totalAnnualValue), margin + 18, y + 50);
-
-  const rightX = pageWidth - margin - 18;
+  doc.rect(margin, y, 4, 56, 'F');
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
+  doc.setTextColor(...MUTED);
+  doc.text('ESTIMATED ROI MULTIPLE', margin + 18, y + 18);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(...GREEN);
+  doc.text(
+    roi === null ? '—' : `${roi.toFixed(1)}x return on investment`,
+    margin + 18,
+    y + 44
+  );
+  y += 76;
+
+  // Closing paragraph
+  const closing =
+    "This analysis is based on conservative industry benchmarks. Actual results will vary based on implementation scope, use case complexity, and organizational readiness. Deepgram's team of voice AI specialists is available to conduct a detailed assessment tailored to your environment.";
+  const wrappedClosing = doc.splitTextToSize(closing, maxWidth);
+  const closingHeight = wrappedClosing.length * 14;
+  if (y + closingHeight + 60 > pageHeight - 70) {
+    doc.addPage();
+    y = margin + 8;
+  }
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(...TEXT);
+  doc.text(wrappedClosing, margin, y);
+  y += closingHeight + 18;
+
+  // CTA bar
+  if (y + 64 > pageHeight - 70) {
+    doc.addPage();
+    y = margin + 8;
+  }
+  doc.setFillColor(...NAVY);
+  doc.rect(margin, y, maxWidth, 64, 'F');
+  doc.setFillColor(...GREEN);
+  doc.rect(margin, y, 4, 64, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(255, 255, 255);
+  doc.text(
+    `Ready to build your business case${company ? ` for ${company}` : ''}?`,
+    margin + 18,
+    y + 22
+  );
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
   doc.setTextColor(200, 210, 225);
   doc.text(
-    `Payback: ${
-      metrics.paybackMonths === null
-        ? '—'
-        : metrics.paybackMonths < 1
-          ? '< 1 month'
-          : `${metrics.paybackMonths.toFixed(1)} months`
-    }`,
-    rightX,
-    y + 22,
-    { align: 'right' }
+    'Contact Kris Korich  |  kris.korich@deepgram.com  |  kriskorich.com',
+    margin + 18,
+    y + 44
   );
-  doc.text(
-    `${formatNumber(metrics.callsPerYear)} calls/yr  ·  ${formatNumber(Math.round(metrics.annualHours))} audio hrs/yr`,
-    rightX,
-    y + 38,
-    { align: 'right' }
-  );
-  doc.text(
-    `Deepgram annual run-rate: ${formatCurrency(metrics.annualDeepgramCost)}`,
-    rightX,
-    y + 54,
-    { align: 'right' }
-  );
-}
-
-function buildGoalCalculation(goalId, inputs) {
-  const { monthlyCalls, aht, agents, agentCost } = inputs;
-
-  if (goalId === 'aht') {
-    const minutesSaved = monthlyCalls * aht * 0.15;
-    const hoursSaved = minutesSaved / 60;
-    const agentsFreed = hoursSaved / 160;
-    const annualValue = agentsFreed * agentCost;
-    return {
-      title: 'Reduce Average Handle Time',
-      lines: [
-        `${formatNumber(monthlyCalls)} calls/month × ${formatNumber(aht)} min AHT × 15% reduction = ${formatNumber(Math.round(minutesSaved))} minutes saved/month`,
-        `÷ 60 = ${formatNumber(Math.round(hoursSaved))} hrs/month ÷ 160 hrs/agent = ${formatDecimal(agentsFreed)} agent-equivalents`,
-      ],
-      valueLine: `× ${formatCurrency(agentCost)} = ${formatCurrency(annualValue)} projected annual value`,
-    };
-  }
-
-  if (goalId === 'deflection') {
-    const annualCalls = monthlyCalls * 12;
-    const deflected = annualCalls * 0.3;
-    const annualValue = deflected * 11.66;
-    return {
-      title: 'Deflect Calls with Self-Service',
-      lines: [
-        `${formatNumber(monthlyCalls)} calls/month × 12 months × 30% containment = ${formatNumber(Math.round(deflected))} deflected calls/year`,
-        `× $11.66 savings per call ($13.50 human − $1.84 self-service)`,
-      ],
-      valueLine: `= ${formatCurrency(annualValue)} projected annual value`,
-    };
-  }
-
-  if (goalId === 'acw') {
-    const annualCalls = monthlyCalls * 12;
-    const hoursPerCall = (aht * 0.2 * 0.4) / 60;
-    const hourlyRate = agentCost / 2080;
-    const annualValue = annualCalls * hoursPerCall * hourlyRate;
-    return {
-      title: 'Reduce After-Call Work',
-      lines: [
-        `${formatNumber(monthlyCalls)} calls/month × 12 months = ${formatNumber(annualCalls)} calls/year`,
-        `× (${formatNumber(aht)} min × 20% ACW × 40% reduction ÷ 60) × (${formatCurrency(agentCost)} ÷ 2,080)`,
-      ],
-      valueLine: `= ${formatCurrency(annualValue)} projected annual value`,
-    };
-  }
-
-  if (goalId === 'qa') {
-    const totalHours = agents * 2 * 52;
-    const hourlyRate = agentCost / 2080;
-    const annualValue = totalHours * hourlyRate;
-    return {
-      title: 'Improve QA & Compliance Coverage',
-      lines: [
-        `${formatNumber(agents)} agents × 2 hrs/week × 52 weeks = ${formatNumber(totalHours)} QA hours/year`,
-        `× (${formatCurrency(agentCost)} ÷ 2,080 hrs) = ${formatCurrencyCents(hourlyRate)}/hr`,
-      ],
-      valueLine: `= ${formatCurrency(annualValue)} projected annual value`,
-    };
-  }
-
-  if (goalId === 'ramp') {
-    const agentsHired = agents * 0.3;
-    const annualValue = agentsHired * (3.5 / 52) * agentCost;
-    return {
-      title: 'Reduce Agent Ramp Time',
-      lines: [
-        `${formatNumber(agents)} agents × 30% attrition = ${formatDecimal(agentsHired)} agents hired/year`,
-        `× (3.5 weeks ÷ 52 weeks) × ${formatCurrency(agentCost)}`,
-      ],
-      valueLine: `= ${formatCurrency(annualValue)} projected annual value`,
-    };
-  }
-
-  if (goalId === 'fcr') {
-    const annualCalls = monthlyCalls * 12;
-    const eliminated = annualCalls * 0.1;
-    const annualValue = eliminated * 13.5;
-    return {
-      title: 'Improve First Call Resolution',
-      lines: [
-        `${formatNumber(monthlyCalls)} calls/month × 12 months × 10% FCR improvement = ${formatNumber(eliminated)} fewer repeat calls/year`,
-        `× $13.50 cost per call`,
-      ],
-      valueLine: `= ${formatCurrency(annualValue)} projected annual value`,
-    };
-  }
-
-  return null;
-}
-
-function renderGoalNarrative(goal, inputs) {
-  const builder = GOAL_NARRATIVES[goal.id];
-  if (!builder) return goal.benchmarkLabel || '';
-  if (goal.id === 'aht') {
-    const agentsFreed =
-      (inputs.monthlyCalls * inputs.aht * 0.15) / 60 / 160;
-    return builder({
-      monthlyCalls: inputs.monthlyCalls,
-      agentsFreed,
-    });
-  }
-  return builder({});
 }
 
 function drawHeaderBar(doc, { pageWidth, margin, eyebrow, topY }) {
@@ -733,9 +776,9 @@ function paintInteriorFooters(doc, { pageWidth, pageHeight, margin }) {
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.setTextColor(...NAVY_SOFT);
+    doc.setTextColor(...MUTED);
     doc.text(
-      '© Deepgram  ·  Prepared by Kris Korich  ·  kriskorich.com  ·  Confidential',
+      '© Deepgram  |  Prepared by Kris Korich  |  kriskorich.com  |  Confidential',
       margin,
       pageHeight - 32
     );
@@ -755,20 +798,4 @@ function formatCurrency(value) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat('en-US').format(value || 0);
-}
-
-function formatDecimal(value) {
-  const rounded = Math.round((value || 0) * 10) / 10;
-  return Number.isInteger(rounded)
-    ? rounded.toString()
-    : rounded.toFixed(1);
-}
-
-function formatCurrencyCents(value) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value || 0);
 }

@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader.jsx';
-import { generateRoiReport } from '../lib/roiReportPdf.js';
+import {
+  generateRoiReport,
+  LANDSCAPE_PROMPT_SYSTEM,
+  buildLandscapePrompt,
+} from '../lib/roiReportPdf.js';
 
 const INDUSTRIES = [
   'Financial Services',
@@ -761,8 +765,12 @@ function Results({ contactCenter, goals, tech, onRecalculate }) {
       {showDownloadModal && (
         <DownloadReportModal
           company={contactCenter.companyName}
+          industry={contactCenter.industry}
           onClose={() => setShowDownloadModal(false)}
-          onSubmit={(recipient) => {
+          onGenerate={async (recipient) => {
+            const landscapeProse = await fetchIndustryLandscape(
+              contactCenter.industry
+            );
             generateRoiReport({
               recipient,
               company: contactCenter.companyName,
@@ -777,8 +785,9 @@ function Results({ contactCenter, goals, tech, onRecalculate }) {
               },
               rows,
               sections,
+              tech,
+              landscapeProse,
             });
-            setShowDownloadModal(false);
           }}
         />
       )}
@@ -786,25 +795,64 @@ function Results({ contactCenter, goals, tech, onRecalculate }) {
   );
 }
 
-function DownloadReportModal({ company, onClose, onSubmit }) {
+async function fetchIndustryLandscape(industry) {
+  const res = await fetch('/api/anthropic', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1500,
+      system: LANDSCAPE_PROMPT_SYSTEM,
+      messages: [
+        { role: 'user', content: buildLandscapePrompt(industry) },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(
+      `Claude API error (${res.status}): ${body.slice(0, 200)}`
+    );
+  }
+  const data = await res.json();
+  const text = data?.content?.[0]?.text || '';
+  if (!text) {
+    throw new Error('Claude returned an empty response.');
+  }
+  return text.trim();
+}
+
+function DownloadReportModal({ company, industry, onClose, onGenerate }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phase, setPhase] = useState('idle'); // idle | generating | error
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && phase !== 'generating') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, phase]);
 
   const canSubmit =
-    name.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    phase !== 'generating' &&
+    name.trim().length > 0 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!canSubmit) return;
-    onSubmit({ name: name.trim(), email: email.trim() });
+    setError(null);
+    setPhase('generating');
+    try {
+      await onGenerate({ name: name.trim(), email: email.trim() });
+      onClose();
+    } catch (err) {
+      setError(err?.message || 'Could not generate the report.');
+      setPhase('error');
+    }
   }
 
   return (
@@ -820,14 +868,17 @@ function DownloadReportModal({ company, onClose, onSubmit }) {
         onClick={(e) => e.stopPropagation()}
       >
         <form onSubmit={handleSubmit} className="relative p-6 sm:p-7">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="absolute right-4 top-4 rounded-md border border-white/10 bg-white/5 p-1.5 text-slate-300 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
-          >
-            <CloseGlyph />
-          </button>
+          {phase !== 'generating' && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="absolute right-4 top-4 rounded-md border border-white/10 bg-white/5 p-1.5 text-slate-300 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+            >
+              <CloseGlyph />
+            </button>
+          )}
+
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-blue/80">
             Research report
           </p>
@@ -839,53 +890,78 @@ function DownloadReportModal({ company, onClose, onSubmit }) {
           </h3>
           <p className="mt-1 text-sm text-slate-400">
             We&apos;ll personalize the report
-            {company ? ` for ${company}` : ''} with your details.
+            {company ? ` for ${company}` : ''}
+            {industry ? ` with a ${industry}-specific industry briefing` : ''}.
           </p>
 
-          <div className="mt-5 space-y-4">
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
-                First &amp; last name
-              </span>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Jane Smith"
-                autoFocus
-                className={inputClass}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
-                Work email
-              </span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="jane@company.com"
-                className={inputClass}
-              />
-            </label>
-          </div>
+          {phase === 'generating' ? (
+            <div className="mt-6 flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-ink-900/60 p-6 text-center">
+              <span className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-accent-blue" />
+              <p className="text-sm font-semibold text-white">
+                Generating your research report…
+              </p>
+              <p className="text-xs text-slate-400">
+                Drafting the {industry || 'industry'} landscape briefing and
+                building your custom PDF. This usually takes 5–10 seconds.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="mt-5 space-y-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+                    First &amp; last name
+                  </span>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Jane Smith"
+                    autoFocus
+                    className={inputClass}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Work email
+                  </span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="jane@company.com"
+                    className={inputClass}
+                  />
+                </label>
+              </div>
 
-          <div className="mt-6 flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/10"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-ink-950/60"
-            >
-              Generate Report
-            </button>
-          </div>
+              {phase === 'error' && error && (
+                <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-100">
+                  <p className="font-semibold text-red-200">
+                    Report generation failed
+                  </p>
+                  <p className="mt-1 text-red-100/80">{error}</p>
+                </div>
+              )}
+
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-ink-950/60"
+                >
+                  {phase === 'error' ? 'Try Again' : 'Generate Report'}
+                </button>
+              </div>
+            </>
+          )}
         </form>
       </div>
     </div>
