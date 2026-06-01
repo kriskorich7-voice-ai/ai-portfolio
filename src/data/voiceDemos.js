@@ -11,7 +11,7 @@ export const VOICE_DEMOS = [
     avatarInitial: 'A',
     accentHex: '#00b4a6',
     voice: 'aura-2-asteria-en',
-    language: 'en-US',
+    model: 'flux-general-en',
     systemPrompt: `You are Aria, a warm and empathetic patient scheduling coordinator at a health system. Your job is to help patients schedule three connected appointments for their upcoming surgery: a pre-operative appointment (2 weeks before surgery), the surgery itself, and a post-operative follow-up (2 weeks after surgery).
 
 Follow this conversation flow:
@@ -40,7 +40,8 @@ Keep responses conversational and under 3 sentences per turn. Be warm and reassu
     avatarInitial: 'S',
     accentHex: '#6366f1',
     voice: 'aura-2-diana-es',
-    language: 'multi',
+    model: 'flux-general-multi',
+    languageHints: ['en', 'es'],
     systemPrompt: `You are Sofia, a bilingual baggage services agent for an international airline. You speak both Spanish and English fluently and will switch to whichever language the customer uses.
 
 The scenario: A passenger has just arrived in Medellin, Colombia on a late-night flight from San Diego (with a connection in Bogotá). It is midnight. Their bag did not arrive on the carousel. They have called the baggage services line.
@@ -75,7 +76,7 @@ Keep responses under 3 sentences per turn. It is midnight — be calm, efficient
     avatarInitial: 'M',
     accentHex: '#f59e0b',
     voice: 'aura-2-orion-en',
-    language: 'en-US',
+    model: 'flux-general-en',
     systemPrompt: `You are Morgan, a knowledgeable and patient mortgage specialist at a retail bank. A customer is calling because interest rates have been dropping and they want to understand what refinancing means for their situation.
 
 Follow this conversation flow:

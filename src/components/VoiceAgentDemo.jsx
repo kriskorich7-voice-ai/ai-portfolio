@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 
 const DEEPGRAM_KEY = import.meta.env.VITE_DEEPGRAM_API_KEY;
 const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
-const SILENCE_MS = 1500;
 
 export default function VoiceAgentDemo({ config, onClose }) {
   const [phase, setPhase] = useState('starting'); // starting | speaking | listening | thinking | error
@@ -15,9 +14,7 @@ export default function VoiceAgentDemo({ config, onClose }) {
   const streamRef = useRef(null);
   const audioRef = useRef(null);
   const audioUrlRef = useRef(null);
-  const silenceTimerRef = useRef(null);
   const currentTurnRef = useRef('');
-  const hasSpokenRef = useRef(false);
   const cancelledRef = useRef(false);
   const transcriptScrollRef = useRef(null);
   const historyRef = useRef([]);
@@ -91,7 +88,6 @@ export default function VoiceAgentDemo({ config, onClose }) {
   async function startListening() {
     if (cancelledRef.current) return;
     currentTurnRef.current = '';
-    hasSpokenRef.current = false;
     setInterim('');
 
     let stream;
@@ -108,12 +104,13 @@ export default function VoiceAgentDemo({ config, onClose }) {
     }
     streamRef.current = stream;
 
-    const url = new URL('wss://api.deepgram.com/v1/listen');
-    url.searchParams.set('model', 'flux');
-    url.searchParams.set('language', config.language || 'en-US');
-    url.searchParams.set('smart_format', 'true');
-    url.searchParams.set('interim_results', 'true');
-    url.searchParams.set('endpointing', '300');
+    const url = new URL('wss://api.deepgram.com/v2/listen');
+    url.searchParams.set('model', config.model);
+    if (config.languageHints && config.languageHints.length > 0) {
+      for (const hint of config.languageHints) {
+        url.searchParams.append('language_hints', hint);
+      }
+    }
 
     const ws = new WebSocket(url.toString(), ['token', DEEPGRAM_KEY]);
     wsRef.current = ws;
@@ -166,20 +163,17 @@ export default function VoiceAgentDemo({ config, onClose }) {
       } catch {
         return;
       }
-      if (data.type !== 'Results') return;
-      const text = data.channel?.alternatives?.[0]?.transcript || '';
-      if (!text) return;
-      if (data.is_final) {
-        currentTurnRef.current = (
-          (currentTurnRef.current ? currentTurnRef.current + ' ' : '') +
-          text.trim()
-        ).trim();
+      // Flux turn-based protocol: { type: 'TurnInfo', event: 'Update' | 'EndOfTurn', transcript: '...' }
+      if (data.type !== 'TurnInfo') return;
+      const text = (data.transcript || '').trim();
+      if (data.event === 'Update') {
+        if (text) setInterim(text);
+      } else if (data.event === 'EndOfTurn') {
+        const finalText = text || currentTurnRef.current.trim();
+        currentTurnRef.current = finalText;
         setInterim('');
-      } else {
-        setInterim(text);
+        if (finalText) finishUserTurn();
       }
-      hasSpokenRef.current = true;
-      resetSilenceTimer();
     };
 
     ws.onerror = () => {
@@ -190,20 +184,7 @@ export default function VoiceAgentDemo({ config, onClose }) {
     };
   }
 
-  function resetSilenceTimer() {
-    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    silenceTimerRef.current = setTimeout(() => {
-      if (hasSpokenRef.current && !cancelledRef.current) {
-        finishUserTurn();
-      }
-    }, SILENCE_MS);
-  }
-
   function stopListening() {
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
     try {
       if (
         recorderRef.current &&
@@ -468,7 +449,7 @@ export default function VoiceAgentDemo({ config, onClose }) {
           </div>
           <p className="text-xs text-slate-500">
             {phase === 'listening'
-              ? 'Mic is open — speak naturally. Pause for 1.5s to send.'
+              ? 'Mic is open — speak naturally. Flux detects when you finish.'
               : phase === 'speaking'
                 ? 'Mic re-opens automatically when the agent finishes.'
                 : phase === 'thinking'
