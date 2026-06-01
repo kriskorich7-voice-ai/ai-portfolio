@@ -109,7 +109,7 @@ export default function VoiceAgentDemo({ config, onClose }) {
     streamRef.current = stream;
 
     const url = new URL('wss://api.deepgram.com/v1/listen');
-    url.searchParams.set('model', 'nova-3');
+    url.searchParams.set('model', 'flux');
     url.searchParams.set('language', config.language || 'en-US');
     url.searchParams.set('smart_format', 'true');
     url.searchParams.set('interim_results', 'true');
