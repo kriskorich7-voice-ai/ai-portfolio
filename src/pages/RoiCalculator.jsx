@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader.jsx';
+import { generateRoiReport } from '../lib/roiReportPdf.js';
 
 const INDUSTRIES = [
   'Financial Services',
@@ -535,6 +535,8 @@ function StepTech({ value, onChange }) {
 }
 
 function Results({ contactCenter, goals, tech, onRecalculate }) {
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+
   const inputs = {
     agents: Number(contactCenter.agents) || 0,
     monthlyCalls: Number(contactCenter.monthlyCalls) || 0,
@@ -728,10 +730,10 @@ function Results({ contactCenter, goals, tech, onRecalculate }) {
       <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-accent-blue/15 via-accent-indigo/10 to-accent-violet/15 p-6 sm:flex-row sm:items-center sm:p-8">
         <div>
           <p className="text-base font-semibold text-white">
-            Want a custom proposal?
+            Take this with you
           </p>
           <p className="mt-1 text-sm text-slate-300">
-            Turn this ROI into a fully priced, customer-ready proposal.
+            Generate a Deepgram-branded research report you can share internally.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -742,19 +744,169 @@ function Results({ contactCenter, goals, tech, onRecalculate }) {
           >
             <RecalcIcon /> Recalculate
           </button>
-          <Link
-            to="/proposal-generator"
+          <button
+            type="button"
+            onClick={() => setShowDownloadModal(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-slate-200"
           >
-            Generate Proposal <ArrowRight />
-          </Link>
+            Download Report <ArrowRight />
+          </button>
         </div>
       </div>
 
       <p className="text-xs text-slate-500">
         * Projections based on industry benchmarks. Actual results may vary.
       </p>
+
+      {showDownloadModal && (
+        <DownloadReportModal
+          company={contactCenter.companyName}
+          onClose={() => setShowDownloadModal(false)}
+          onSubmit={(recipient) => {
+            generateRoiReport({
+              recipient,
+              company: contactCenter.companyName,
+              industry: contactCenter.industry,
+              inputs,
+              metrics: {
+                totalAnnualValue,
+                paybackMonths,
+                callsPerYear,
+                annualHours,
+                annualDeepgramCost,
+              },
+              rows,
+              sections,
+            });
+            setShowDownloadModal(false);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function DownloadReportModal({ company, onClose, onSubmit }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const canSubmit =
+    name.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    onSubmit({ name: name.trim(), email: email.trim() });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="download-report-title"
+      onClick={onClose}
+    >
+      <div
+        className="card-surface w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <form onSubmit={handleSubmit} className="relative p-6 sm:p-7">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute right-4 top-4 rounded-md border border-white/10 bg-white/5 p-1.5 text-slate-300 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+          >
+            <CloseGlyph />
+          </button>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-blue/80">
+            Research report
+          </p>
+          <h3
+            id="download-report-title"
+            className="mt-1 text-xl font-semibold tracking-tight text-white"
+          >
+            Download Your ROI Research Report
+          </h3>
+          <p className="mt-1 text-sm text-slate-400">
+            We&apos;ll personalize the report
+            {company ? ` for ${company}` : ''} with your details.
+          </p>
+
+          <div className="mt-5 space-y-4">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+                First &amp; last name
+              </span>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Jane Smith"
+                autoFocus
+                className={inputClass}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+                Work email
+              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="jane@company.com"
+                className={inputClass}
+              />
+            </label>
+          </div>
+
+          <div className="mt-6 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/10"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:bg-white/40 disabled:text-ink-950/60"
+            >
+              Generate Report
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function CloseGlyph() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="h-4 w-4"
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M4.7 4.7a1 1 0 0 1 1.4 0L10 8.6l3.9-3.9a1 1 0 1 1 1.4 1.4L11.4 10l3.9 3.9a1 1 0 0 1-1.4 1.4L10 11.4l-3.9 3.9a1 1 0 1 1-1.4-1.4L8.6 10 4.7 6.1a1 1 0 0 1 0-1.4Z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
 
