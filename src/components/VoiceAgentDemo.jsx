@@ -2,37 +2,54 @@ import { useEffect, useRef, useState } from 'react';
 
 const DEEPGRAM_KEY = import.meta.env.VITE_DEEPGRAM_API_KEY;
 const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const VOICE_SYSTEM_ADDENDUM =
+  '\n\nKeep every response under 2 sentences. You are in a voice conversation — be concise.';
 
 export default function VoiceAgentDemo({ config, onClose }) {
-  const [phase, setPhase] = useState('starting'); // starting | speaking | listening | thinking | error
-  const [history, setHistory] = useState([]); // user/assistant turns after the opening
+  const [phase, setPhase] = useState('starting'); // starting | listening | processing | responding | error
+  const [history, setHistory] = useState([
+    { role: 'assistant', content: config.openingLine },
+  ]);
   const [interim, setInterim] = useState('');
   const [error, setError] = useState(null);
 
+  // Flux STT
   const wsRef = useRef(null);
   const recorderRef = useRef(null);
   const streamRef = useRef(null);
-  const audioRef = useRef(null);
-  const audioUrlRef = useRef(null);
+
+  // Streaming TTS
+  const ttsWsRef = useRef(null);
+  const ttsPlayerRef = useRef(null);
+  const audioContextRef = useRef(null);
+
+  // Conversation state
   const currentTurnRef = useRef('');
+  const pendingAgentTextRef = useRef(config.openingLine);
+  const phaseRef = useRef('starting');
   const cancelledRef = useRef(false);
+  const historyRef = useRef([{ role: 'assistant', content: config.openingLine }]);
+  const abortControllerRef = useRef(null);
   const transcriptScrollRef = useRef(null);
-  const historyRef = useRef([]);
 
   useEffect(() => {
     historyRef.current = history;
   }, [history]);
 
   useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
     if (!DEEPGRAM_KEY) {
       setError(
         'Missing VITE_DEEPGRAM_API_KEY. Add it to your .env to run live demos.'
       );
-      setPhase('error');
+      transitionPhase('error');
       return undefined;
     }
     cancelledRef.current = false;
-    runOpeningTurn();
+    startDemo();
     return () => {
       cancelledRef.current = true;
       teardown();
@@ -47,52 +64,36 @@ export default function VoiceAgentDemo({ config, onClose }) {
     }
   }, [history, interim, phase]);
 
-  async function runOpeningTurn() {
+  function transitionPhase(next) {
+    phaseRef.current = next;
+    setPhase(next);
+  }
+
+  async function startDemo() {
     try {
-      await speak(config.openingLine);
+      await openMic();
       if (cancelledRef.current) return;
-      await startListening();
+      await speakStreaming(config.openingLine);
     } catch (err) {
       if (!cancelledRef.current) {
         setError(err?.message || 'Unknown error.');
-        setPhase('error');
+        transitionPhase('error');
       }
     }
   }
 
-  async function speak(text) {
-    setPhase('speaking');
-    setInterim('');
-    const url = await synthesize(text, config.voice);
-    if (cancelledRef.current) {
-      URL.revokeObjectURL(url);
-      return;
-    }
-    if (audioUrlRef.current) {
-      try {
-        URL.revokeObjectURL(audioUrlRef.current);
-      } catch {
-        /* ignore */
-      }
-    }
-    audioUrlRef.current = url;
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    await new Promise((resolve, reject) => {
-      audio.onended = () => resolve();
-      audio.onerror = () => reject(new Error('Audio playback failed.'));
-      audio.play().catch(reject);
-    });
-  }
+  // -------- Flux STT (always-on) --------
 
-  async function startListening() {
-    if (cancelledRef.current) return;
-    currentTurnRef.current = '';
-    setInterim('');
-
+  async function openMic() {
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
     } catch {
       throw new Error(
         'Microphone access denied. Allow mic access in your browser to run the demo.'
@@ -115,168 +116,193 @@ export default function VoiceAgentDemo({ config, onClose }) {
     const ws = new WebSocket(url.toString(), ['token', DEEPGRAM_KEY]);
     wsRef.current = ws;
 
-    ws.onopen = () => {
-      if (cancelledRef.current) {
-        try {
-          ws.close();
-        } catch {
-          /* ignore */
+    await new Promise((resolve, reject) => {
+      ws.onopen = () => {
+        if (cancelledRef.current) {
+          try {
+            ws.close();
+          } catch {
+            /* ignore */
+          }
+          resolve();
+          return;
         }
-        return;
-      }
-      const mimeCandidates = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-      ];
-      const mime =
-        mimeCandidates.find(
-          (m) =>
-            typeof MediaRecorder !== 'undefined' &&
-            MediaRecorder.isTypeSupported(m)
-        ) || '';
-      let recorder;
-      try {
-        recorder = mime
-          ? new MediaRecorder(stream, { mimeType: mime })
-          : new MediaRecorder(stream);
-      } catch {
-        recorder = new MediaRecorder(stream);
-      }
-      recorderRef.current = recorder;
-      recorder.ondataavailable = (e) => {
-        if (
-          e.data?.size &&
-          wsRef.current?.readyState === WebSocket.OPEN
-        ) {
-          wsRef.current.send(e.data);
+        const mimeCandidates = [
+          'audio/webm;codecs=opus',
+          'audio/webm',
+          'audio/ogg;codecs=opus',
+        ];
+        const mime =
+          mimeCandidates.find(
+            (m) =>
+              typeof MediaRecorder !== 'undefined' &&
+              MediaRecorder.isTypeSupported(m)
+          ) || '';
+        let recorder;
+        try {
+          recorder = mime
+            ? new MediaRecorder(stream, { mimeType: mime })
+            : new MediaRecorder(stream);
+        } catch {
+          recorder = new MediaRecorder(stream);
+        }
+        recorderRef.current = recorder;
+        recorder.ondataavailable = (e) => {
+          if (
+            e.data?.size &&
+            wsRef.current?.readyState === WebSocket.OPEN
+          ) {
+            wsRef.current.send(e.data);
+          }
+        };
+        recorder.start(250);
+        resolve();
+      };
+
+      ws.onmessage = handleFluxMessage;
+      ws.onerror = () => {
+        if (!cancelledRef.current) {
+          reject(new Error('Deepgram connection error.'));
         }
       };
-      recorder.start(250);
-      setPhase('listening');
-    };
-
-    ws.onmessage = (event) => {
-      let data;
-      try {
-        data = JSON.parse(event.data);
-      } catch {
-        return;
-      }
-      // Flux turn-based protocol: { type: 'TurnInfo', event: 'Update' | 'EndOfTurn', transcript: '...' }
-      if (data.type !== 'TurnInfo') return;
-      const text = (data.transcript || '').trim();
-      if (data.event === 'Update') {
-        if (text) setInterim(text);
-      } else if (data.event === 'EndOfTurn') {
-        const finalText = text || currentTurnRef.current.trim();
-        currentTurnRef.current = finalText;
-        setInterim('');
-        if (finalText) finishUserTurn();
-      }
-    };
-
-    ws.onerror = () => {
-      if (cancelledRef.current) return;
-      setError('Deepgram connection error.');
-      setPhase('error');
-      stopListening();
-    };
+      ws.onclose = () => {
+        // Ignore — teardown handles cleanup
+      };
+    });
   }
 
-  function stopListening() {
+  function handleFluxMessage(event) {
+    let data;
     try {
-      if (
-        recorderRef.current &&
-        recorderRef.current.state !== 'inactive'
-      ) {
-        recorderRef.current.stop();
+      data = JSON.parse(event.data);
+    } catch {
+      return;
+    }
+    // Flux v2 Results envelope: { type: 'Results', channel: { alternatives: [{ transcript }] }, is_final, speech_final }
+    if (data.type !== 'Results') return;
+    const text = (data.channel?.alternatives?.[0]?.transcript || '').trim();
+
+    // Barge-in: any transcript while we're not in 'listening' aborts the agent
+    if (
+      text &&
+      (phaseRef.current === 'responding' ||
+        phaseRef.current === 'processing')
+    ) {
+      handleBargeIn();
+    }
+
+    if (text) {
+      if (data.is_final) {
+        const merged = (
+          (currentTurnRef.current ? currentTurnRef.current + ' ' : '') +
+          text
+        ).trim();
+        currentTurnRef.current = merged;
+        setInterim('');
+      } else {
+        setInterim(text);
       }
-    } catch {
-      /* ignore */
     }
+
+    if (data.speech_final && currentTurnRef.current.trim()) {
+      finishUserTurn();
+    }
+  }
+
+  function handleBargeIn() {
+    // Abort any in-flight Claude call
     try {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'CloseStream' }));
-      }
+      abortControllerRef.current?.abort();
     } catch {
       /* ignore */
     }
+    abortControllerRef.current = null;
+
+    // Stop TTS playback and close TTS WebSocket
     try {
-      wsRef.current?.close();
+      ttsPlayerRef.current?.stop();
     } catch {
       /* ignore */
     }
+    ttsPlayerRef.current = null;
     try {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      ttsWsRef.current?.close();
     } catch {
       /* ignore */
     }
-    wsRef.current = null;
-    recorderRef.current = null;
-    streamRef.current = null;
+    ttsWsRef.current = null;
+
+    // pendingAgentText was pushed into history at the START of speakStreaming,
+    // so the partial agent response is already in the transcript. Nothing else to add.
+    pendingAgentTextRef.current = '';
+
+    transitionPhase('listening');
   }
 
   async function finishUserTurn() {
-    stopListening();
     const userText = currentTurnRef.current.trim();
+    currentTurnRef.current = '';
+    setInterim('');
     if (!userText) {
-      if (!cancelledRef.current) {
-        try {
-          await startListening();
-        } catch (err) {
-          setError(err?.message || 'Mic restart failed.');
-          setPhase('error');
-        }
-      }
+      transitionPhase('listening');
       return;
     }
 
-    setPhase('thinking');
+    transitionPhase('processing');
     const updatedHistory = [
       ...historyRef.current,
       { role: 'user', content: userText },
     ];
     setHistory(updatedHistory);
-    setInterim('');
+
+    let reply;
+    try {
+      reply = await callClaude(updatedHistory);
+    } catch (err) {
+      if (err?.name === 'AbortError') return; // barged in mid-call
+      if (!cancelledRef.current) {
+        setError(err?.message || 'Claude error.');
+        transitionPhase('error');
+      }
+      return;
+    }
+    if (cancelledRef.current) return;
+    if (phaseRef.current !== 'processing') return; // barged in just after fetch resolved
 
     try {
-      const reply = await callClaude(updatedHistory);
-      if (cancelledRef.current) return;
-      setHistory([
-        ...updatedHistory,
-        { role: 'assistant', content: reply },
-      ]);
-      await speak(reply);
-      if (cancelledRef.current) return;
-      await startListening();
+      await speakStreaming(reply);
     } catch (err) {
       if (!cancelledRef.current) {
-        setError(err?.message || 'Unknown error.');
-        setPhase('error');
+        setError(err?.message || 'TTS error.');
+        transitionPhase('error');
       }
     }
   }
 
   async function callClaude(historyArr) {
-    // Claude requires the first message to be from 'user'.
-    // Inject a synthetic conversation-start user turn so the assistant
-    // opening line can be passed as memory.
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const fullSystem = config.systemPrompt + VOICE_SYSTEM_ADDENDUM;
     const messages = [
       { role: 'user', content: '[Conversation begins]' },
-      { role: 'assistant', content: config.openingLine },
       ...historyArr,
     ];
+
     const res = await fetch('/api/anthropic', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         model: CLAUDE_MODEL,
-        max_tokens: 500,
-        system: config.systemPrompt,
+        max_tokens: 150,
+        system: fullSystem,
         messages,
       }),
+      signal: abortController.signal,
     });
+    if (abortControllerRef.current === abortController) {
+      abortControllerRef.current = null;
+    }
     if (!res.ok) {
       const body = await res.text();
       throw new Error(
@@ -289,42 +315,167 @@ export default function VoiceAgentDemo({ config, onClose }) {
     return text;
   }
 
-  async function synthesize(text, voice) {
-    const url = `https://api.deepgram.com/v1/speak?model=${encodeURIComponent(voice)}&encoding=mp3`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Token ${DEEPGRAM_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(
-        `Deepgram TTS error (${res.status}): ${body.slice(0, 200)}`
-      );
-    }
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
-  }
+  // -------- Streaming TTS --------
 
-  function teardown() {
-    stopListening();
-    try {
-      audioRef.current?.pause();
-    } catch {
-      /* ignore */
+  async function speakStreaming(text) {
+    if (cancelledRef.current) return;
+
+    // Push to history at the start so the bubble appears immediately.
+    // (Opening line is already pre-seeded in history, so skip the duplicate.)
+    if (text !== config.openingLine) {
+      setHistory((prev) => [
+        ...prev,
+        { role: 'assistant', content: text },
+      ]);
     }
-    audioRef.current = null;
-    if (audioUrlRef.current) {
+    pendingAgentTextRef.current = text;
+    transitionPhase('responding');
+
+    if (!audioContextRef.current) {
       try {
-        URL.revokeObjectURL(audioUrlRef.current);
+        audioContextRef.current = new (window.AudioContext ||
+          window.webkitAudioContext)({ sampleRate: 24000 });
+      } catch {
+        audioContextRef.current = new (window.AudioContext ||
+          window.webkitAudioContext)();
+      }
+    }
+    if (audioContextRef.current.state === 'suspended') {
+      try {
+        await audioContextRef.current.resume();
       } catch {
         /* ignore */
       }
-      audioUrlRef.current = null;
     }
+
+    const player = createTtsPlayer(audioContextRef.current);
+    ttsPlayerRef.current = player;
+
+    const url = new URL('wss://api.deepgram.com/v1/speak');
+    url.searchParams.set('model', config.voice);
+    url.searchParams.set('encoding', 'linear16');
+    url.searchParams.set('sample_rate', '24000');
+
+    const ws = new WebSocket(url.toString(), ['token', DEEPGRAM_KEY]);
+    ws.binaryType = 'arraybuffer';
+    ttsWsRef.current = ws;
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+        if (ttsWsRef.current === ws) ttsWsRef.current = null;
+        if (ttsPlayerRef.current === player) ttsPlayerRef.current = null;
+        // If we weren't already barged in, return to listening.
+        if (phaseRef.current === 'responding') {
+          pendingAgentTextRef.current = '';
+          transitionPhase('listening');
+        }
+        resolve();
+      };
+
+      ws.onopen = () => {
+        if (cancelledRef.current) {
+          finish();
+          return;
+        }
+        ws.send(JSON.stringify({ type: 'Speak', text }));
+        ws.send(JSON.stringify({ type: 'Flush' }));
+      };
+
+      ws.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          player.appendChunk(event.data);
+          return;
+        }
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'Flushed' || msg.type === 'Done') {
+            player.flush();
+          }
+        } catch {
+          /* ignore */
+        }
+      };
+
+      ws.onerror = () => {
+        if (!cancelledRef.current && !settled) {
+          settled = true;
+          reject(new Error('TTS WebSocket error.'));
+        }
+      };
+      ws.onclose = () => {
+        // If we never got Flushed, treat close as flush trigger
+        player.flush();
+      };
+
+      player.onEnded(() => finish());
+    });
+  }
+
+  // -------- Teardown --------
+
+  function teardown() {
+    try {
+      abortControllerRef.current?.abort();
+    } catch {
+      /* ignore */
+    }
+    abortControllerRef.current = null;
+    try {
+      ttsPlayerRef.current?.stop();
+    } catch {
+      /* ignore */
+    }
+    ttsPlayerRef.current = null;
+    try {
+      ttsWsRef.current?.close();
+    } catch {
+      /* ignore */
+    }
+    ttsWsRef.current = null;
+    try {
+      if (
+        recorderRef.current &&
+        recorderRef.current.state !== 'inactive'
+      ) {
+        recorderRef.current.stop();
+      }
+    } catch {
+      /* ignore */
+    }
+    recorderRef.current = null;
+    try {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'CloseStream' }));
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      wsRef.current?.close();
+    } catch {
+      /* ignore */
+    }
+    wsRef.current = null;
+    try {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    } catch {
+      /* ignore */
+    }
+    streamRef.current = null;
+    try {
+      audioContextRef.current?.close();
+    } catch {
+      /* ignore */
+    }
+    audioContextRef.current = null;
   }
 
   function handleEndDemo() {
@@ -334,13 +485,14 @@ export default function VoiceAgentDemo({ config, onClose }) {
   }
 
   const STATUS = {
-    starting: 'Connecting…',
-    speaking: 'Speaking…',
-    listening: 'Listening…',
-    thinking: 'Thinking…',
+    starting: 'Connecting',
+    listening: 'Listening',
+    processing: 'Processing',
+    responding: 'Responding',
     error: 'Error',
   };
   const statusText = STATUS[phase] || '';
+  const statusColor = phase === 'error' ? '#f87171' : config.accentHex;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-ink-950">
@@ -375,11 +527,9 @@ export default function VoiceAgentDemo({ config, onClose }) {
 
       <div className="flex items-center justify-center gap-2 border-b border-white/5 bg-ink-900/40 py-2 text-[10px] uppercase tracking-[0.22em]">
         <span className="text-slate-500">Status:</span>
-        <span
-          className="font-semibold"
-          style={{ color: phase === 'error' ? '#f87171' : config.accentHex }}
-        >
+        <span className="font-semibold inline-flex items-center" style={{ color: statusColor }}>
           {statusText}
+          {phase !== 'error' && <AnimatedDots color={statusColor} />}
         </span>
       </div>
 
@@ -388,12 +538,6 @@ export default function VoiceAgentDemo({ config, onClose }) {
         className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8"
       >
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
-          <ChatBubble
-            role="assistant"
-            text={config.openingLine}
-            accentHex={config.accentHex}
-            avatarInitial={config.avatarInitial}
-          />
           {history.map((msg, i) => (
             <ChatBubble
               key={i}
@@ -444,24 +588,106 @@ export default function VoiceAgentDemo({ config, onClose }) {
                   phase === 'listening' ? config.accentHex : '#0b0b15',
               }}
             >
-              {phase === 'thinking' ? <Spinner /> : <MicIcon />}
+              {phase === 'processing' ? <Spinner /> : <MicIcon />}
             </div>
           </div>
-          <p className="text-xs text-slate-500">
-            {phase === 'listening'
-              ? 'Mic is open — speak naturally. Flux detects when you finish.'
-              : phase === 'speaking'
-                ? 'Mic re-opens automatically when the agent finishes.'
-                : phase === 'thinking'
-                  ? 'Generating response…'
-                  : phase === 'starting'
-                    ? 'Connecting to Deepgram…'
-                    : ''}
+          <p className="text-xs text-slate-500 inline-flex items-center gap-1">
+            {phase === 'listening' && (
+              <>Mic is open — speak naturally. Interrupt the agent anytime.</>
+            )}
+            {phase === 'responding' && (
+              <>Agent is speaking. Start talking to interrupt.</>
+            )}
+            {phase === 'processing' && (
+              <>
+                <span>Sending to Claude</span>
+                <AnimatedDots color="#94a3b8" />
+              </>
+            )}
+            {phase === 'starting' && (
+              <>
+                <span>Opening mic</span>
+                <AnimatedDots color="#94a3b8" />
+              </>
+            )}
           </p>
         </div>
       </footer>
     </div>
   );
+}
+
+function createTtsPlayer(audioContext) {
+  let nextStartTime = audioContext.currentTime;
+  let sources = [];
+  let endedCallbacks = [];
+  let flushed = false;
+  let stopped = false;
+
+  function maybeNotifyEnded() {
+    if (stopped) return;
+    if (flushed && sources.length === 0) {
+      const callbacks = endedCallbacks;
+      endedCallbacks = [];
+      callbacks.forEach((fn) => {
+        try {
+          fn();
+        } catch {
+          /* ignore */
+        }
+      });
+    }
+  }
+
+  return {
+    appendChunk(arrayBuffer) {
+      if (stopped) return;
+      const int16 = new Int16Array(arrayBuffer);
+      if (int16.length === 0) return;
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) {
+        float32[i] = int16[i] / 32768;
+      }
+      const buffer = audioContext.createBuffer(1, float32.length, 24000);
+      buffer.copyToChannel(float32, 0);
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      const startAt = Math.max(
+        audioContext.currentTime + 0.02,
+        nextStartTime
+      );
+      try {
+        source.start(startAt);
+      } catch {
+        /* ignore */
+      }
+      nextStartTime = startAt + buffer.duration;
+      sources.push(source);
+      source.onended = () => {
+        sources = sources.filter((s) => s !== source);
+        maybeNotifyEnded();
+      };
+    },
+    flush() {
+      flushed = true;
+      maybeNotifyEnded();
+    },
+    onEnded(fn) {
+      if (typeof fn === 'function') endedCallbacks.push(fn);
+    },
+    stop() {
+      stopped = true;
+      sources.forEach((s) => {
+        try {
+          s.stop();
+        } catch {
+          /* ignore */
+        }
+      });
+      sources = [];
+    },
+  };
 }
 
 function ChatBubble({ role, text, accentHex, avatarInitial, interim }) {
@@ -503,6 +729,26 @@ function ChatBubble({ role, text, accentHex, avatarInitial, interim }) {
         You
       </div>
     </div>
+  );
+}
+
+function AnimatedDots({ color = 'currentColor' }) {
+  return (
+    <span
+      className="ml-1.5 inline-flex items-center gap-0.5"
+      aria-hidden="true"
+    >
+      {[0, 200, 400].map((delay) => (
+        <span
+          key={delay}
+          className="inline-block h-1 w-1 animate-pulse rounded-full"
+          style={{
+            backgroundColor: color,
+            animationDelay: `${delay}ms`,
+          }}
+        />
+      ))}
+    </span>
   );
 }
 
