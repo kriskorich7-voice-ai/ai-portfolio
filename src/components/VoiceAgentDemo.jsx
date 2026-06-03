@@ -82,8 +82,9 @@ export default function VoiceAgentDemo({ config, onClose }) {
       session.on('conversation-text', (msg) => {
         if (cancelledRef.current) return;
         const role = msg.role === 'user' ? 'user' : 'assistant';
-        const content = msg.content || msg.message || '';
-        if (!content) return;
+        const raw = msg.content || msg.message || '';
+        if (!raw) return;
+        const content = role === 'assistant' ? stripMarkdown(raw) : raw;
         setHistory((h) => [...h, { role, content }]);
       });
 
@@ -180,6 +181,15 @@ export default function VoiceAgentDemo({ config, onClose }) {
     onClose();
   }
 
+  function handleSuggestion(text) {
+    if (!text || !sessionRef.current) return;
+    try {
+      sessionRef.current.injectUserMessage(text);
+    } catch {
+      /* ignore */
+    }
+  }
+
   const STATUS = {
     connecting: 'Connecting',
     listening: 'Listening',
@@ -232,83 +242,206 @@ export default function VoiceAgentDemo({ config, onClose }) {
         </span>
       </div>
 
-      <div
-        ref={transcriptScrollRef}
-        className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8"
-      >
-        <div className="mx-auto flex max-w-3xl flex-col gap-4">
-          {history.length === 0 && phase !== 'error' && (
-            <p className="self-center text-xs text-slate-500">
-              Setting up your conversation with {config.agentName}…
-            </p>
-          )}
-          {history.map((msg, i) => (
-            <ChatBubble
-              key={i}
-              role={msg.role}
-              text={msg.content}
-              accentHex={config.accentHex}
-              avatarInitial={config.avatarInitial}
-            />
-          ))}
-          {phase === 'error' && error && (
-            <div className="self-center rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs text-red-100">
-              {error}
-            </div>
-          )}
-        </div>
-      </div>
+      <div className="flex flex-1 overflow-hidden">
+        <DemoSidebar
+          config={config}
+          phase={phase}
+          onSelectSuggestion={handleSuggestion}
+        />
 
-      <footer className="border-t border-white/10 bg-ink-900/80 px-4 py-5 sm:px-6 sm:py-6">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-2">
-          <div className="relative">
-            {phase === 'listening' && (
-              <>
-                <span
-                  className="absolute inset-0 animate-ping rounded-full opacity-40"
-                  style={{ backgroundColor: config.accentHex }}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div
+            ref={transcriptScrollRef}
+            className="flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8"
+          >
+            <div className="mx-auto flex max-w-3xl flex-col gap-4">
+              {history.length === 0 && phase !== 'error' && (
+                <p className="self-center text-xs text-slate-500">
+                  Setting up your conversation with {config.agentName}…
+                </p>
+              )}
+              {history.map((msg, i) => (
+                <ChatBubble
+                  key={i}
+                  role={msg.role}
+                  text={msg.content}
+                  accentHex={config.accentHex}
+                  avatarInitial={config.avatarInitial}
                 />
-                <span
-                  className="absolute -inset-2 rounded-full border opacity-60"
-                  style={{ borderColor: config.accentHex }}
-                />
-              </>
-            )}
-            <div
-              aria-label={statusText}
-              className="relative flex h-16 w-16 items-center justify-center rounded-full border text-white shadow-lg transition"
-              style={{
-                borderColor: config.accentHex,
-                backgroundColor:
-                  phase === 'listening' ? config.accentHex : '#0b0b15',
-              }}
-            >
-              {phase === 'thinking' ? <Spinner /> : <MicIcon />}
+              ))}
+              {phase === 'error' && error && (
+                <div className="self-center rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs text-red-100">
+                  {error}
+                </div>
+              )}
             </div>
           </div>
-          <p className="inline-flex items-center gap-1 text-xs text-slate-500">
-            {phase === 'listening' && (
-              <>Mic is open — speak naturally. Interrupt the agent anytime.</>
-            )}
-            {phase === 'responding' && (
-              <>Agent is speaking. Start talking to interrupt.</>
-            )}
-            {phase === 'thinking' && (
-              <>
-                <span>Generating reply</span>
-                <AnimatedDots color="#94a3b8" />
-              </>
-            )}
-            {phase === 'connecting' && (
-              <>
-                <span>Connecting to Deepgram Voice Agent</span>
-                <AnimatedDots color="#94a3b8" />
-              </>
-            )}
-          </p>
+
+          <footer className="border-t border-white/10 bg-ink-900/80 px-4 py-5 sm:px-6 sm:py-6">
+            <div className="mx-auto flex max-w-3xl flex-col items-center gap-2">
+              <div className="relative">
+                {phase === 'listening' && (
+                  <>
+                    <span
+                      className="absolute inset-0 animate-ping rounded-full opacity-40"
+                      style={{ backgroundColor: config.accentHex }}
+                    />
+                    <span
+                      className="absolute -inset-2 rounded-full border opacity-60"
+                      style={{ borderColor: config.accentHex }}
+                    />
+                  </>
+                )}
+                <div
+                  aria-label={statusText}
+                  className="relative flex h-16 w-16 items-center justify-center rounded-full border text-white shadow-lg transition"
+                  style={{
+                    borderColor: config.accentHex,
+                    backgroundColor:
+                      phase === 'listening' ? config.accentHex : '#0b0b15',
+                  }}
+                >
+                  {phase === 'thinking' ? <Spinner /> : <MicIcon />}
+                </div>
+              </div>
+              <p className="inline-flex items-center gap-1 text-xs text-slate-500">
+                {phase === 'listening' && (
+                  <>Mic is open — speak naturally. Interrupt the agent anytime.</>
+                )}
+                {phase === 'responding' && (
+                  <>Agent is speaking. Start talking to interrupt.</>
+                )}
+                {phase === 'thinking' && (
+                  <>
+                    <span>Generating reply</span>
+                    <AnimatedDots color="#94a3b8" />
+                  </>
+                )}
+                {phase === 'connecting' && (
+                  <>
+                    <span>Connecting to Deepgram Voice Agent</span>
+                    <AnimatedDots color="#94a3b8" />
+                  </>
+                )}
+              </p>
+            </div>
+          </footer>
         </div>
-      </footer>
+      </div>
     </div>
+  );
+}
+
+function stripMarkdown(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    .replace(/#{1,6}\s/g, '')
+    .replace(/`(.*?)`/g, '$1')
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+    .replace(/^\s*[-*+]\s/gm, '')
+    .replace(/^\s*\d+\.\s/gm, '')
+    .trim();
+}
+
+function DemoSidebar({ config, phase, onSelectSuggestion }) {
+  const sidebar = config.sidebar;
+  if (!sidebar) return null;
+  const disabled = phase === 'connecting' || phase === 'error';
+  return (
+    <aside className="hidden w-2/5 flex-col overflow-y-auto border-r border-white/10 bg-ink-900/60 px-6 py-7 lg:flex">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        Demo guide
+      </p>
+      <h2
+        className="mt-1 text-lg font-semibold tracking-tight"
+        style={{ color: config.accentHex }}
+      >
+        {sidebar.title}
+      </h2>
+
+      <p className="mt-4 text-sm leading-relaxed text-slate-300">
+        {sidebar.scenario}
+      </p>
+
+      {sidebar.fakeData && (
+        <div className="mt-5 rounded-lg border border-white/10 bg-ink-950/70 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-slate-300">
+          {sidebar.fakeData}
+        </div>
+      )}
+
+      <div className="mt-6">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+          {sidebar.suggestionsLabel || 'Try saying…'}
+        </p>
+        <ul className="mt-3 space-y-2">
+          {sidebar.suggestions.map((suggestion, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                onClick={() => onSelectSuggestion(suggestion)}
+                disabled={disabled}
+                className="group w-full rounded-lg border border-white/10 bg-ink-900/40 px-3 py-2 text-left text-xs leading-relaxed text-slate-200 transition hover:bg-ink-800/70 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ borderColor: disabled ? undefined : `${config.accentHex}33` }}
+              >
+                <span
+                  className="mr-1.5 font-semibold"
+                  style={{ color: config.accentHex }}
+                  aria-hidden="true"
+                >
+                  &ldquo;
+                </span>
+                {suggestion}
+                <span
+                  className="ml-1 font-semibold"
+                  style={{ color: config.accentHex }}
+                  aria-hidden="true"
+                >
+                  &rdquo;
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-[10px] italic text-slate-500">
+          Click a suggestion to inject it as the user.
+        </p>
+      </div>
+
+      <div
+        className="mt-auto rounded-lg border-l-2 bg-white/5 px-3.5 py-3"
+        style={{ borderColor: config.accentHex }}
+      >
+        <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+          <LightbulbIcon /> Pro tip
+        </p>
+        <p className="mt-1.5 text-xs leading-relaxed text-slate-300">
+          {sidebar.proTip}
+        </p>
+      </div>
+    </aside>
+  );
+}
+
+function LightbulbIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-3.5 w-3.5"
+      aria-hidden="true"
+    >
+      <path d="M9 18h6" />
+      <path d="M10 22h4" />
+      <path d="M12 2a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26A7 7 0 0 0 12 2z" />
+    </svg>
   );
 }
 
