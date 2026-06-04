@@ -49,3 +49,31 @@
     @apply border-white/10 shadow-glow;
   }
 }
+
+@media print {
+  body {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+  .print-guide {
+    margin-top: 0 !important;
+  }
+  .print-guide,
+  .print-guide * {
+    color: #111 !important;
+  }
+  .print-guide .card-surface {
+    border-color: #ddd !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .print-guide img {
+    border-color: #ddd !important;
+  }
+}

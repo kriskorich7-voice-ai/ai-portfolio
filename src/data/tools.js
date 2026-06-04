@@ -48,16 +48,16 @@ export const tools = [
     status: 'Live',
   },
   {
-    slug: 'woodworking-guide-builder',
-    name: 'Woodworking Guide Builder',
+    slug: 'woodworking-guide-generator',
+    name: 'Woodworking Guide Generator',
     category: 'personal',
-    tagline: 'Generate step-by-step build plans for shop projects.',
+    tagline: 'Describe a project, add measurements, get a full AI build guide.',
     description:
-      'Describe a project and get a tailored cut list, tool plan, and step-by-step build guide tuned to your skill level and shop setup.',
-    tags: ['Maker', 'Planning'],
+      'Describe any woodworking project, add your measurements, and get a complete custom build guide with AI-generated images.',
+    tags: ['Maker', 'AI Images', 'Claude'],
     accent: 'from-accent-blue/40 to-accent-violet/20',
-    href: '#',
-    status: 'Coming soon',
+    href: '/woodworking-guide',
+    status: 'Live',
   },
   {
     slug: 'rental-property-assistant',
