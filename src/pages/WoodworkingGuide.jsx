@@ -170,7 +170,7 @@ export default function WoodworkingGuide() {
     const safeHeroPrompt = `Professional interior design photography of a beautifully finished ${parsed.projectTitle}. Installed in a modern home, natural lighting, photorealistic, high quality, no people.`;
 
     const [heroImage, ...stepImages] = await Promise.all([
-      generateImage(safeHeroPrompt, '1792x1024', bump),
+      generateImage(safeHeroPrompt, '1536x1024', bump),
       ...parsed.steps.map((step) => {
         const safeImagePrompt = `Professional woodworking photography: ${step.imagePrompt}. Clean workshop setting, good lighting, no people, showing the wood pieces and tools arranged to illustrate this step. Photorealistic, high quality.`;
         return generateImage(safeImagePrompt, '1024x1024', bump);
@@ -357,7 +357,7 @@ async function generateImage(prompt, size, onDone) {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'dall-e-3',
+        model: 'gpt-image-2',
         prompt,
         n: 1,
         size,
