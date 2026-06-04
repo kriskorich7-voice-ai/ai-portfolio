@@ -159,7 +159,8 @@ export default function WoodworkingGuide() {
       return;
     }
 
-    // Phase 2 — generate images in parallel, tolerating individual failures.
+    // Phase 2 — generate images sequentially with a delay between requests to
+    // respect the image API rate limit, tolerating individual failures.
     const total = parsed.steps.length + 1;
     setImageProgress({ done: 0, total });
     setPhase('images');
@@ -169,13 +170,18 @@ export default function WoodworkingGuide() {
 
     const safeHeroPrompt = `Professional interior design photography of a beautifully finished ${parsed.projectTitle}. Installed in a modern home, natural lighting, photorealistic, high quality, no people.`;
 
-    const [heroImage, ...stepImages] = await Promise.all([
-      generateImage(safeHeroPrompt, '1536x1024', bump),
-      ...parsed.steps.map((step) => {
-        const safeImagePrompt = `Professional woodworking photography: ${step.imagePrompt}. Clean workshop setting, good lighting, no people, showing the wood pieces and tools arranged to illustrate this step. Photorealistic, high quality.`;
-        return generateImage(safeImagePrompt, '1024x1024', bump);
-      }),
-    ]);
+    const prompts = [
+      { prompt: safeHeroPrompt, size: '1536x1024' },
+      ...parsed.steps.map((step) => ({
+        prompt: `Professional woodworking photography: ${step.imagePrompt}. Clean workshop setting, good lighting, no people, showing the wood pieces and tools arranged to illustrate this step. Photorealistic, high quality.`,
+        size: '1024x1024',
+      })),
+    ];
+
+    const [heroImage, ...stepImages] = await generateImagesSequentially(
+      prompts,
+      bump
+    );
 
     setGuide({
       ...parsed,
@@ -347,35 +353,34 @@ export default function WoodworkingGuide() {
   );
 }
 
-async function generateImage(prompt, size, onDone) {
-  if (!prompt) {
-    onDone();
-    return null;
-  }
-  try {
-    const res = await fetch('/api/openai', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-image-2',
-        prompt,
-        n: 1,
-        size,
-        quality: 'medium',
-      }),
-    });
-    if (!res.ok) {
-      onDone();
-      return null;
+async function generateImagesSequentially(prompts, onProgress) {
+  const results = [];
+  for (let i = 0; i < prompts.length; i++) {
+    try {
+      const response = await fetch('/api/openai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'gpt-image-2',
+          prompt: prompts[i].prompt,
+          n: 1,
+          size: prompts[i].size || '1024x1024',
+          quality: 'medium',
+        }),
+      });
+      const data = await response.json();
+      results.push(data?.data?.[0]?.url || null);
+    } catch (err) {
+      results.push(null);
     }
-    const data = await res.json();
-    const url = data?.data?.[0]?.url || null;
-    onDone();
-    return url;
-  } catch {
-    onDone();
-    return null;
+    // Update progress indicator after each image
+    onProgress?.();
+    // Wait 13 seconds between requests to respect rate limit
+    if (i < prompts.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 13000));
+    }
   }
+  return results;
 }
 
 function extractJson(text) {
@@ -401,8 +406,9 @@ function LoadingPanel({ phase, message, imageProgress }) {
       ? Math.round((imageProgress.done / imageProgress.total) * 100)
       : 0
     : 60;
+  const current = Math.min(imageProgress.done + 1, imageProgress.total);
   const label = isImages
-    ? `Generating images (${imageProgress.done} of ${imageProgress.total} complete)…`
+    ? `Generating image ${current} of ${imageProgress.total}…`
     : message;
 
   return (
@@ -421,7 +427,7 @@ function LoadingPanel({ phase, message, imageProgress }) {
           </div>
           <p className="mt-3 text-xs text-slate-500">
             {isImages
-              ? 'Rendering photorealistic build images — this can take a minute.'
+              ? 'Rendering photorealistic build images one at a time to respect rate limits — this can take a few minutes.'
               : 'Designing your build plan, cut list, and instructions.'}
           </p>
         </div>
