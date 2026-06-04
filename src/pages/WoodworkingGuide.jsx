@@ -29,6 +29,35 @@ Return your response as JSON with this exact structure:
 
 Tailor the guide to the skill level, available tools, wood species, and exact dimensions provided. The cut list must use the actual dimensions provided. Steps should be 6-10 steps. Return only valid JSON, no markdown.`;
 
+const TEXT_SYSTEM_PROMPT = `You are an expert woodworker and carpenter with 20 years of experience teaching beginners. Generate an extremely detailed, novice-friendly woodworking guide. Assume the reader has never built anything before. Use simple, clear language. Explain every action in detail.
+
+Return your response as JSON with this exact structure:
+{
+  'projectTitle': 'string',
+  'projectDescription': 'string (2-3 sentences)',
+  'estimatedTime': 'string',
+  'estimatedCost': 'string',
+  'difficultyRating': 'number 1-5',
+  'heroImagePrompt': 'string (detailed prompt for finished project, photorealistic, no people)',
+  'beforeYouBegin': 'string (2-3 sentences about safety, preparation, what to expect)',
+  'toolList': [{ 'tool': 'string', 'purpose': 'string', 'alternative': 'string (cheaper/simpler alternative if available)' }],
+  'materialsList': [{ 'material': 'string', 'quantity': 'string', 'whereToBuy': 'string', 'notes': 'string' }],
+  'cutList': [{ 'piece': 'string', 'quantity': 'number', 'length': 'string', 'width': 'string', 'thickness': 'string', 'notes': 'string' }],
+  'steps': [
+    {
+      'stepNumber': 'number',
+      'title': 'string',
+      'description': 'string (4-6 sentences, extremely detailed, explain every motion)',
+      'whatYouNeed': ['list of tools and materials needed for this step'],
+      'commonMistakes': 'string (what beginners get wrong here)',
+      'proTip': 'string (expert shortcut or insight)',
+      'checkPoint': 'string (how to verify this step is done correctly before moving on)'
+    }
+  ]
+}
+
+Generate 12-15 steps. Be extremely detailed. Use the exact dimensions provided. Return only valid JSON, no markdown.`;
+
 const SKILL_LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
 
 const WOOD_SPECIES = [
@@ -69,14 +98,15 @@ export default function WoodworkingGuide() {
   const [selectedTools, setSelectedTools] = useState([]);
   const [specialNotes, setSpecialNotes] = useState('');
 
-  // 'idle' | 'analyzing' | 'images' | 'done'
+  // 'idle' | 'analyzing' | 'images' | 'text' | 'done'
   const [phase, setPhase] = useState('idle');
   const [analyzeMsgIndex, setAnalyzeMsgIndex] = useState(0);
   const [imageProgress, setImageProgress] = useState({ done: 0, total: 0 });
   const [guide, setGuide] = useState(null);
   const [error, setError] = useState(null);
 
-  const isBusy = phase === 'analyzing' || phase === 'images';
+  const isBusy =
+    phase === 'analyzing' || phase === 'images' || phase === 'text';
   const canGenerate =
     projectName.trim().length > 0 && description.trim().length > 0 && !isBusy;
 
@@ -122,12 +152,12 @@ export default function WoodworkingGuide() {
       .join('\n');
   }
 
-  async function handleGenerate(e) {
-    e?.preventDefault();
+  async function handleGenerate(mode) {
     if (!canGenerate) return;
+    const isText = mode === 'text';
     setError(null);
     setGuide(null);
-    setPhase('analyzing');
+    setPhase(isText ? 'text' : 'analyzing');
 
     let parsed;
     try {
@@ -136,8 +166,8 @@ export default function WoodworkingGuide() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           model: CLAUDE_MODEL,
-          max_tokens: 8000,
-          system: SYSTEM_PROMPT,
+          max_tokens: isText ? 16000 : 8000,
+          system: isText ? TEXT_SYSTEM_PROMPT : SYSTEM_PROMPT,
           messages: [{ role: 'user', content: buildUserMessage() }],
         }),
       });
@@ -159,16 +189,31 @@ export default function WoodworkingGuide() {
       return;
     }
 
-    // Phase 2 — generate images sequentially with a delay between requests to
-    // respect the image API rate limit, tolerating individual failures.
+    const safeHeroPrompt = `Professional interior design photography of a beautifully finished ${parsed.projectTitle}. Installed in a modern home, natural lighting, photorealistic, high quality, no people.`;
+
+    // Text mode — generate only the hero image, then render.
+    if (isText) {
+      const [heroImage] = await generateImagesSequentially([
+        { prompt: safeHeroPrompt, size: '1536x1024' },
+      ]);
+
+      setGuide({
+        ...parsed,
+        heroImage,
+        meta: { skillLevel, woodSpecies, mode: 'text' },
+      });
+      setPhase('done');
+      return;
+    }
+
+    // Image mode — generate hero + one image per step sequentially with a delay
+    // between requests to respect the image API rate limit, tolerating failures.
     const total = parsed.steps.length + 1;
     setImageProgress({ done: 0, total });
     setPhase('images');
 
     const bump = () =>
       setImageProgress((p) => ({ ...p, done: p.done + 1 }));
-
-    const safeHeroPrompt = `Professional interior design photography of a beautifully finished ${parsed.projectTitle}. Installed in a modern home, natural lighting, photorealistic, high quality, no people.`;
 
     const prompts = [
       { prompt: safeHeroPrompt, size: '1536x1024' },
@@ -190,7 +235,7 @@ export default function WoodworkingGuide() {
         ...step,
         image: stepImages[i] || null,
       })),
-      meta: { skillLevel, woodSpecies },
+      meta: { skillLevel, woodSpecies, mode: 'images' },
     });
     setPhase('done');
   }
@@ -212,7 +257,10 @@ export default function WoodworkingGuide() {
       </div>
 
       {phase !== 'done' && (
-        <form onSubmit={handleGenerate} className="no-print space-y-5">
+        <form
+          onSubmit={(e) => e.preventDefault()}
+          className="no-print space-y-5"
+        >
           <div className="card-surface">
             <div className="relative space-y-5 p-6">
               <Field label="Project Name" required>
@@ -307,24 +355,55 @@ export default function WoodworkingGuide() {
             </div>
           </div>
 
-          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-            <button
-              type="submit"
-              disabled={!canGenerate}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3.5 text-base font-semibold text-ink-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 disabled:text-ink-950/60 sm:w-auto"
-            >
-              {isBusy ? (
-                <>
-                  <Spinner /> Generating…
-                </>
-              ) : (
-                <>
-                  <HammerIcon /> Generate Guide
-                </>
-              )}
-            </button>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => handleGenerate('images')}
+                  disabled={!canGenerate}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3.5 text-base font-semibold text-ink-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-500/40 disabled:text-ink-950/60"
+                >
+                  {phase === 'analyzing' || phase === 'images' ? (
+                    <>
+                      <Spinner /> Generating…
+                    </>
+                  ) : (
+                    <>
+                      <HammerIcon /> Generate with AI Images
+                    </>
+                  )}
+                </button>
+                <p className="mt-2 text-center text-xs text-slate-500">
+                  ~15 min · Best for inspiration and sharing
+                </p>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => handleGenerate('text')}
+                  disabled={!canGenerate}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-ink-900/60 px-6 py-3.5 text-base font-semibold text-white transition hover:border-white/25 hover:bg-ink-900/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {phase === 'text' ? (
+                    <>
+                      <Spinner /> Generating…
+                    </>
+                  ) : (
+                    <>
+                      <DocIcon /> Generate Text Guide
+                    </>
+                  )}
+                </button>
+                <p className="mt-2 text-center text-xs text-slate-500">
+                  ~30 sec · Best for actually building the project
+                </p>
+              </div>
+            </div>
+
             {!projectName.trim() || !description.trim() ? (
-              <p className="text-xs text-slate-500">
+              <p className="text-center text-xs text-slate-500">
                 Add a project name and description to generate your guide.
               </p>
             ) : null}
@@ -408,15 +487,23 @@ function extractJson(text) {
 
 function LoadingPanel({ phase, message, imageProgress }) {
   const isImages = phase === 'images';
+  const isText = phase === 'text';
   const pct = isImages
     ? imageProgress.total
       ? Math.round((imageProgress.done / imageProgress.total) * 100)
       : 0
     : 60;
   const current = Math.min(imageProgress.done + 1, imageProgress.total);
-  const label = isImages
-    ? `Generating image ${current} of ${imageProgress.total}…`
-    : message;
+  const label = isText
+    ? 'Building your detailed guide…'
+    : isImages
+      ? `Generating image ${current} of ${imageProgress.total}…`
+      : message;
+  const subtext = isText
+    ? 'Writing extremely detailed, beginner-friendly instructions — about 30 seconds.'
+    : isImages
+      ? 'Rendering photorealistic build images one at a time to respect rate limits — this can take a few minutes.'
+      : 'Designing your build plan, cut list, and instructions.';
 
   return (
     <div className="card-surface mt-8">
@@ -432,11 +519,7 @@ function LoadingPanel({ phase, message, imageProgress }) {
               style={{ width: `${Math.max(pct, 8)}%` }}
             />
           </div>
-          <p className="mt-3 text-xs text-slate-500">
-            {isImages
-              ? 'Rendering photorealistic build images one at a time to respect rate limits — this can take a few minutes.'
-              : 'Designing your build plan, cut list, and instructions.'}
-          </p>
+          <p className="mt-3 text-xs text-slate-500">{subtext}</p>
         </div>
       </div>
     </div>
@@ -447,6 +530,7 @@ function LoadingPanel({ phase, message, imageProgress }) {
 
 function GuideOutput({ guide, onReset }) {
   const difficulty = clampRating(guide.difficultyRating);
+  const isText = guide.meta?.mode === 'text';
 
   return (
     <div className="print-guide mt-10 space-y-8">
@@ -509,6 +593,21 @@ function GuideOutput({ guide, onReset }) {
         </div>
       </div>
 
+      {/* Before You Begin (text mode) */}
+      {guide.beforeYouBegin && (
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-5">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-lg">⚠️</span>
+            <h3 className="text-base font-semibold text-amber-200">
+              Before You Begin
+            </h3>
+          </div>
+          <p className="text-sm leading-relaxed text-amber-100/90">
+            {guide.beforeYouBegin}
+          </p>
+        </div>
+      )}
+
       {/* Tools & Materials */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Panel title="Tool List" icon={<WrenchIcon />}>
@@ -522,6 +621,11 @@ function GuideOutput({ guide, onReset }) {
                   <p className="text-sm font-medium text-white">{t.tool}</p>
                   {t.purpose && (
                     <p className="text-xs text-slate-400">{t.purpose}</p>
+                  )}
+                  {t.alternative && (
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Alternative: {t.alternative}
+                    </p>
                   )}
                 </div>
               </li>
@@ -545,6 +649,11 @@ function GuideOutput({ guide, onReset }) {
                 </div>
                 {m.notes && (
                   <p className="mt-0.5 text-xs text-slate-400">{m.notes}</p>
+                )}
+                {m.whereToBuy && (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Where to buy: {m.whereToBuy}
+                  </p>
                 )}
               </li>
             ))}
@@ -596,9 +705,13 @@ function GuideOutput({ guide, onReset }) {
         <h3 className="text-lg font-semibold tracking-tight text-white">
           Step-by-Step Guide
         </h3>
-        {guide.steps.map((step, i) => (
-          <StepCard key={i} step={step} fallbackNumber={i + 1} />
-        ))}
+        {guide.steps.map((step, i) =>
+          isText ? (
+            <TextStepCard key={i} step={step} fallbackNumber={i + 1} />
+          ) : (
+            <StepCard key={i} step={step} fallbackNumber={i + 1} />
+          )
+        )}
       </div>
     </div>
   );
@@ -650,6 +763,98 @@ function StepCard({ step, fallbackNumber }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function TextStepCard({ step, fallbackNumber }) {
+  const number = step.stepNumber || fallbackNumber;
+  const needs = Array.isArray(step.whatYouNeed) ? step.whatYouNeed : [];
+  return (
+    <div className="card-surface break-inside-avoid">
+      <div className="relative p-5 sm:p-6">
+        <div className="mb-4 flex items-center gap-3">
+          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-emerald-500 text-lg font-bold text-ink-950">
+            {number}
+          </span>
+          <h4 className="text-base font-semibold tracking-tight text-white">
+            {step.title}
+          </h4>
+        </div>
+
+        {needs.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
+              What You Need
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {needs.map((item, i) => (
+                <span
+                  key={i}
+                  className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-slate-300"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className="text-sm leading-relaxed text-slate-300">
+          {step.description}
+        </p>
+
+        {(step.commonMistakes || step.checkPoint || step.proTip) && (
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {step.commonMistakes && (
+              <InfoBox tone="amber" icon="⚠️" title="Common Mistakes">
+                {step.commonMistakes}
+              </InfoBox>
+            )}
+            {step.checkPoint && (
+              <InfoBox tone="green" icon="✓" title="Checkpoint">
+                {step.checkPoint}
+              </InfoBox>
+            )}
+            {step.proTip && (
+              <InfoBox tone="blue" icon="💡" title="Pro Tip">
+                {step.proTip}
+              </InfoBox>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InfoBox({ tone, icon, title, children }) {
+  const boxTones = {
+    amber: 'border-amber-500/25 bg-amber-500/10',
+    green: 'border-emerald-500/25 bg-emerald-500/10',
+    blue: 'border-accent-blue/30 bg-accent-blue/10',
+  };
+  const titleTones = {
+    amber: 'text-amber-300',
+    green: 'text-emerald-300',
+    blue: 'text-accent-blue',
+  };
+  const bodyTones = {
+    amber: 'text-amber-100/90',
+    green: 'text-emerald-100/90',
+    blue: 'text-blue-100/90',
+  };
+  return (
+    <div className={`rounded-xl border p-3 ${boxTones[tone]}`}>
+      <p
+        className={`text-[11px] font-semibold uppercase tracking-wide ${titleTones[tone]}`}
+      >
+        <span className="mr-1">{icon}</span>
+        {title}
+      </p>
+      <p className={`mt-1 text-xs leading-relaxed ${bodyTones[tone]}`}>
+        {children}
+      </p>
     </div>
   );
 }
@@ -851,6 +1056,27 @@ function HammerIcon() {
       <path d="M15 12l-8.5 8.5a2.12 2.12 0 0 1-3-3L12 9" />
       <path d="M17.64 15L22 10.64" />
       <path d="M20.91 11.7l-1.25-1.25c-.6-.6-.93-1.4-.93-2.25v-.86L16.01 4.6a5.56 5.56 0 0 0-3.94-1.64H9l.92.82A6.18 6.18 0 0 1 12 8.4v1.56l2 2h.86c.85 0 1.65.34 2.25.93l1.25 1.25" />
+    </svg>
+  );
+}
+
+function DocIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+      <polyline points="14 3 14 9 20 9" />
+      <line x1="8" y1="13" x2="16" y2="13" />
+      <line x1="8" y1="17" x2="14" y2="17" />
     </svg>
   );
 }
