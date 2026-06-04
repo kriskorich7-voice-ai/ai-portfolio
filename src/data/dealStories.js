@@ -149,6 +149,51 @@ Technical wins don't automatically close deals. But they give you something most
 Sometimes the best move in a negotiation is to not negotiate.
 `,
   },
+  {
+    slug: 'beating-salesforce-on-their-own-turf',
+    title: 'Beating Salesforce on Their Own Turf: A $2.75M Government Deal',
+    date: '2026-06-04',
+    category: 'Partnerships',
+    dealSize: '$2.75M TCV / $550K ACV',
+    contractLength: '5 Years',
+    industry: 'Government',
+    motion: 'Direct Deal + Salesforce Partner Influenced',
+    outcome:
+      'Replaced legacy manual processes across a major metro workforce development system',
+    excerpt:
+      'A small startup walked into a government RFP competing against Salesforce directly — and won. Then Salesforce backed us against the remaining competition.',
+    content: `
+A major metropolitan city was running its workforce development centers on a foundation of paper, manual data entry, and institutional patience. Case managers were responsible for helping constituents navigate a complex web of government programs — job training, food assistance, benefits eligibility, educational programs — and doing it all by hand.
+
+The workflow was broken at every step. Notes were written on paper during constituent meetings, then manually entered into a database, then entered again into Salesforce. Case managers were spending hours each day on data entry alone. Constituents — many of them in urgent need — were left waiting days for responses while their case manager worked through a backlog that never got smaller.
+
+The city needed a solution that could eliminate the redundancy, connect their systems, and get constituents the help they needed faster.
+
+## The Sales Cycle
+
+I was the AE on this deal from start to finish. When the RFP came in I quarterbacked the entire response process — gathering requirements, coordinating the technical response, pulling in leadership for onsite demos, and navigating a government procurement process that is rarely straightforward.
+
+Government procurement moves slowly and deliberately. Every step — from RFP response to vendor evaluation to selection to negotiation — required patience, precision, and the ability to keep a complex deal moving without losing momentum. I was the primary point of contact throughout, which meant being the face of the company across every stakeholder conversation and every procurement hurdle.
+
+## Competing Against Salesforce — Then Winning With Them
+
+The competitive landscape was unusual. We were a small startup going up against established players — including Salesforce itself, who had their own solution in the mix. For a city government evaluating vendors, brand recognition and perceived safety matter enormously. Choosing a startup over a household name requires real conviction.
+
+What won the deal wasn't a feature checklist. It was vision and domain expertise. Our leadership team came from government — they had lived the problem we were solving. When we got in front of the city's decision makers, we weren't selling software. We were speaking their language, describing their pain with precision, and showing them a platform that worked out of the box with no customization required.
+
+When Salesforce didn't advance to the next round of evaluation, something important happened: they backed us. The relationship I had built with the local Salesforce AE and their team before this RFP ever landed meant that when they were out of the running, their influence shifted in our direction. They vouched for us to the customer. That endorsement — from the company we had just competed against — carried significant weight in the final selection. It's the kind of outcome that only happens when you invest in relationships before you need them.
+
+## The Outcome
+
+The city signed a five-year contract. Case managers gained a single system of record — everything entered once, connected everywhere it needed to live. The triple-entry nightmare was eliminated. Hours of daily administrative work were recaptured and redirected toward actual constituent service.
+
+The impact on constituents was immediate. Faster case processing meant faster program placement, faster benefit access, and faster care for people who couldn't afford to wait.
+
+## The Takeaway
+
+Competing against a larger, better-known player is winnable when you have two things they don't: genuine domain expertise and a solution that works without modification. Government buyers aren't looking for the most sophisticated platform — they're looking for the one that solves their problem without creating new ones. We had the right people, the right product, and the right story. That was enough.
+  `,
+  },
 ];
 
 export function findDealStory(slug) {
