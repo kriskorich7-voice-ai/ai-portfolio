@@ -366,12 +366,13 @@ async function generateImagesSequentially(prompts, onProgress) {
           n: 1,
           size: prompts[i].size || '1024x1024',
           quality: 'medium',
-          response_format: 'b64_json',
         }),
       });
       const data = await response.json();
-      const b64 = data?.data?.[0]?.b64_json;
-      const imageUrl = b64 ? `data:image/png;base64,${b64}` : null;
+      const item = data?.data?.[0];
+      const imageUrl =
+        item?.url ||
+        (item?.b64_json ? `data:image/png;base64,${item.b64_json}` : null);
       if (imageUrl) {
         console.log('Image generated:', imageUrl.substring(0, 50));
       }
