@@ -361,7 +361,7 @@ async function generateImage(prompt, size, onDone) {
         prompt,
         n: 1,
         size,
-        quality: 'standard',
+        quality: 'medium',
       }),
     });
     if (!res.ok) {
