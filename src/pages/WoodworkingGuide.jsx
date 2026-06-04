@@ -167,11 +167,14 @@ export default function WoodworkingGuide() {
     const bump = () =>
       setImageProgress((p) => ({ ...p, done: p.done + 1 }));
 
+    const safeHeroPrompt = `Professional interior design photography of a beautifully finished ${parsed.projectTitle}. Installed in a modern home, natural lighting, photorealistic, high quality, no people.`;
+
     const [heroImage, ...stepImages] = await Promise.all([
-      generateImage(parsed.heroImagePrompt, '1792x1024', bump),
-      ...parsed.steps.map((step) =>
-        generateImage(step.imagePrompt, '1024x1024', bump)
-      ),
+      generateImage(safeHeroPrompt, '1792x1024', bump),
+      ...parsed.steps.map((step) => {
+        const safeImagePrompt = `Professional woodworking photography: ${step.imagePrompt}. Clean workshop setting, good lighting, no people, showing the wood pieces and tools arranged to illustrate this step. Photorealistic, high quality.`;
+        return generateImage(safeImagePrompt, '1024x1024', bump);
+      }),
     ]);
 
     setGuide({

@@ -14,8 +14,11 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
+    console.log('OpenAI response status:', response.status);
+    console.log('OpenAI response:', JSON.stringify(data));
     return res.status(response.status).json(data);
   } catch (error) {
+    console.error('Proxy error:', error);
     return res.status(500).json({ error: 'Proxy error', details: error.message });
   }
 }
