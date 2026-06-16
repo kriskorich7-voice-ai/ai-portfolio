@@ -18,6 +18,17 @@ const SPORTS = [
 
 const BET_TYPES = ['Moneyline', 'Spread', 'Over/Under'];
 
+const EMPTY_ODDS = {
+  mlHome: '',
+  mlAway: '',
+  spreadHome: '',
+  spreadHomeOdds: '',
+  spreadAwayOdds: '',
+  total: '',
+  overOdds: '',
+  underOdds: '',
+};
+
 const SPORTSBOOKS = ['MGM', 'DraftKings', 'FanDuel', 'Caesars', 'Other'];
 
 const SYSTEM_PROMPT = `You are an expert sports betting analyst with deep knowledge of Soccer, NFL, and College Basketball. Analyze the matchup provided and give a detailed betting recommendation.
@@ -63,6 +74,12 @@ export default function SportsBetting() {
   const [manualMatchup, setManualMatchup] = useState('');
   const [betType, setBetType] = useState('Moneyline');
   const [stake, setStake] = useState(50);
+
+  // Optional manual odds entry
+  const [showOdds, setShowOdds] = useState(false);
+  const [odds, setOdds] = useState(EMPTY_ODDS);
+  const setOddsField = (key) => (e) =>
+    setOdds((o) => ({ ...o, [key]: e.target.value }));
 
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState(null);
@@ -128,6 +145,11 @@ export default function SportsBetting() {
         ? `\n\nLive odds from the sportsbook feed:\n${selectedGame.oddsSummary}`
         : '';
 
+    const manualOdds = formatManualOdds(odds);
+    const oddsInstruction = manualOdds
+      ? `\n\nUser-entered current odds (American format):${manualOdds}\nUse these exact listed odds. Base impliedProbability, edge, the "odds" field, and potentialPayout on these actual odds (for the recommended side/bet type).`
+      : '\n\nNo odds were provided — use your knowledge to estimate fair market odds, then compute impliedProbability and payout from those estimates.';
+
     const userMessage = [
       `Sport: ${activeSport.label}`,
       `Matchup: ${currentMatchup}`,
@@ -137,6 +159,7 @@ export default function SportsBetting() {
         stake
       )} bet at the recommended odds.`,
       oddsContext,
+      oddsInstruction,
     ]
       .filter(Boolean)
       .join('\n');
@@ -343,6 +366,87 @@ export default function SportsBetting() {
                       className={inputClass}
                     />
                   </Field>
+                </div>
+
+                {/* Optional manual odds */}
+                <div className="rounded-xl border border-white/10 bg-ink-900/40">
+                  <button
+                    type="button"
+                    onClick={() => setShowOdds((v) => !v)}
+                    className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+                  >
+                    <span className="text-sm font-medium text-slate-200">
+                      Enter Current Odds{' '}
+                      <span className="text-slate-500">(optional)</span>
+                    </span>
+                    <Chevron open={showOdds} />
+                  </button>
+
+                  {showOdds && (
+                    <div className="space-y-4 border-t border-white/10 px-4 py-4">
+                      <p className="text-xs text-slate-500">
+                        Leave blank and Claude will estimate fair market odds.
+                        American format.
+                      </p>
+
+                      <OddsRow label="Moneyline" icon="💵">
+                        <OddsInput
+                          label="Home"
+                          value={odds.mlHome}
+                          onChange={setOddsField('mlHome')}
+                          placeholder="e.g. -110"
+                        />
+                        <OddsInput
+                          label="Away"
+                          value={odds.mlAway}
+                          onChange={setOddsField('mlAway')}
+                          placeholder="e.g. +130"
+                        />
+                      </OddsRow>
+
+                      <OddsRow label="Spread" icon="📊">
+                        <OddsInput
+                          label="Home spread"
+                          value={odds.spreadHome}
+                          onChange={setOddsField('spreadHome')}
+                          placeholder="e.g. -3.5"
+                        />
+                        <OddsInput
+                          label="Home odds"
+                          value={odds.spreadHomeOdds}
+                          onChange={setOddsField('spreadHomeOdds')}
+                          placeholder="e.g. -110"
+                        />
+                        <OddsInput
+                          label="Away odds"
+                          value={odds.spreadAwayOdds}
+                          onChange={setOddsField('spreadAwayOdds')}
+                          placeholder="e.g. -110"
+                        />
+                      </OddsRow>
+
+                      <OddsRow label="Over / Under" icon="🎯">
+                        <OddsInput
+                          label="Total"
+                          value={odds.total}
+                          onChange={setOddsField('total')}
+                          placeholder="e.g. 47.5"
+                        />
+                        <OddsInput
+                          label="Over odds"
+                          value={odds.overOdds}
+                          onChange={setOddsField('overOdds')}
+                          placeholder="e.g. -110"
+                        />
+                        <OddsInput
+                          label="Under odds"
+                          value={odds.underOdds}
+                          onChange={setOddsField('underOdds')}
+                          placeholder="e.g. -110"
+                        />
+                      </OddsRow>
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -1046,6 +1150,33 @@ function summarizeOdds(game) {
   return `${book.title || book.key}: ${lines.join(' | ')}`;
 }
 
+// Build a readable block of any odds the user actually entered. Returns '' if none.
+function formatManualOdds(o) {
+  const lines = [];
+
+  const ml = [
+    o.mlHome.trim() ? `Home ${o.mlHome.trim()}` : null,
+    o.mlAway.trim() ? `Away ${o.mlAway.trim()}` : null,
+  ].filter(Boolean);
+  if (ml.length) lines.push(`Moneyline — ${ml.join(', ')}`);
+
+  const spread = [
+    o.spreadHome.trim() ? `Home spread ${o.spreadHome.trim()}` : null,
+    o.spreadHomeOdds.trim() ? `Home odds ${o.spreadHomeOdds.trim()}` : null,
+    o.spreadAwayOdds.trim() ? `Away odds ${o.spreadAwayOdds.trim()}` : null,
+  ].filter(Boolean);
+  if (spread.length) lines.push(`Spread — ${spread.join(', ')}`);
+
+  const ou = [
+    o.total.trim() ? `Total ${o.total.trim()}` : null,
+    o.overOdds.trim() ? `Over ${o.overOdds.trim()}` : null,
+    o.underOdds.trim() ? `Under ${o.underOdds.trim()}` : null,
+  ].filter(Boolean);
+  if (ou.length) lines.push(`Over/Under — ${ou.join(', ')}`);
+
+  return lines.length ? '\n' + lines.map((l) => `- ${l}`).join('\n') : '';
+}
+
 function formatAmerican(price) {
   const n = Number(price);
   if (!Number.isFinite(n)) return String(price);
@@ -1196,6 +1327,53 @@ function Field({ label, children }) {
       </span>
       {children}
     </label>
+  );
+}
+
+function OddsRow({ label, icon, children }) {
+  return (
+    <div>
+      <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <span>{icon}</span>
+        {label}
+      </p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{children}</div>
+    </div>
+  );
+}
+
+function OddsInput({ label, value, onChange, placeholder }) {
+  return (
+    <div>
+      <input
+        type="text"
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className={inputClass}
+      />
+      <span className="mt-1 block text-[11px] text-slate-500">{label}</span>
+    </div>
+  );
+}
+
+function Chevron({ open }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={`h-4 w-4 flex-none text-slate-400 transition-transform ${
+        open ? 'rotate-180' : ''
+      }`}
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
 
