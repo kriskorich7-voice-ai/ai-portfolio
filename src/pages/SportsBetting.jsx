@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import PageHeader from '../components/PageHeader.jsx';
 
-const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const CLAUDE_MODEL = 'claude-sonnet-4-6';
 
 const STORAGE_KEY = 'sportsBets';
 
