@@ -75,13 +75,13 @@ export const tools = [
     slug: 'sports-betting-analyzer',
     name: 'Sports Betting Analyzer',
     category: 'personal',
-    tagline: 'Edge detection across odds, lines, and player props.',
+    tagline: 'AI-powered matchup analysis with bet tracking.',
     description:
-      'Pulls live odds and player data, surfaces statistical edges, and explains the reasoning behind each suggested wager.',
-    tags: ['Data', 'Sports'],
+      'AI-powered matchup analysis with bet tracking for Soccer, NFL, and College Basketball.',
+    tags: ['Data', 'Sports', 'Claude'],
     accent: 'from-accent-violet/40 to-accent-indigo/20',
-    href: '#',
-    status: 'Coming soon',
+    href: '/sports-betting',
+    status: 'Live',
   },
 ];
 

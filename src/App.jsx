@@ -8,6 +8,7 @@ import RoiCalculator from './pages/RoiCalculator.jsx';
 import VoiceProspecting from './pages/VoiceProspecting.jsx';
 import VoiceDemos from './pages/VoiceDemos.jsx';
 import WoodworkingGuide from './pages/WoodworkingGuide.jsx';
+import SportsBetting from './pages/SportsBetting.jsx';
 import Insights from './pages/Insights.jsx';
 import InsightPost from './pages/InsightPost.jsx';
 import DealStories from './pages/DealStories.jsx';
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/voice-prospecting" element={<VoiceProspecting />} />
           <Route path="/demos" element={<VoiceDemos />} />
           <Route path="/woodworking-guide" element={<WoodworkingGuide />} />
+          <Route path="/sports-betting" element={<SportsBetting />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/insights/:slug" element={<InsightPost />} />
           <Route path="/deal-stories" element={<DealStories />} />
