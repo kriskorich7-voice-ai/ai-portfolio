@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import PageHeader from '../components/PageHeader.jsx';
 
 const DEEPGRAM_KEY = import.meta.env.VITE_DEEPGRAM_API_KEY;
-const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const CLAUDE_MODEL = 'claude-sonnet-4-6';
 
 const SYSTEM_PROMPT = `You are an expert B2B sales and partnerships professional. The user will describe a prospect or partner company. Your job is to:
 1. Identify key facts about the company based on the description (industry, size, likely pain points, recent context if mentioned)
