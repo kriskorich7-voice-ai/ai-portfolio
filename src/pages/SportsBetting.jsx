@@ -16,8 +16,6 @@ const SPORTS = [
   },
 ];
 
-const BET_TYPES = ['Moneyline', 'Spread', 'Over/Under'];
-
 const EMPTY_ODDS = {
   mlHome: '',
   mlAway: '',
@@ -31,28 +29,36 @@ const EMPTY_ODDS = {
 
 const SPORTSBOOKS = ['MGM', 'DraftKings', 'FanDuel', 'Caesars', 'Other'];
 
-const SYSTEM_PROMPT = `You are an expert sports betting analyst with deep knowledge of Soccer, NFL, and College Basketball. Analyze the matchup provided and give a detailed betting recommendation.
+const SYSTEM_PROMPT = `You are an expert sports betting analyst with deep knowledge of Soccer, NFL, and College Basketball. Analyze the matchup across ALL bet types — moneyline, spread, and over/under — using the odds provided (or your own fair-odds estimates when odds are missing). Then recommend the SINGLE best bet across all three types: the one offering the most value (largest positive edge at acceptable risk). Explain why that bet type offers the most value.
+
+The top-level "recommendation", "betType", "odds", "confidence", "impliedProbability", "ourProbability", "edge", "potentialPayout", "reasoning", "keyFactors", "risks", "verdict", and "historicalContext" fields must all describe your single best bet.
 
 Return your response as JSON:
 {
   "matchup": "string",
   "sport": "string",
-  "betType": "string",
-  "recommendation": "string (Team/Side to bet on)",
+  "bestBetType": "Moneyline | Spread | Over | Under",
+  "betType": "string (same as bestBetType)",
+  "recommendation": "string (Team/Side to bet on for the best bet)",
   "confidence": "number 1-100",
   "odds": "string (American format, e.g. -110)",
   "impliedProbability": "string (e.g. 52.4%)",
   "ourProbability": "string (your estimated true probability)",
   "edge": "string (our probability minus implied probability)",
   "potentialPayout": "number (based on stake)",
-  "reasoning": "string (3-4 sentences explaining the pick)",
+  "reasoning": "string (3-4 sentences explaining the pick AND why this bet type offers the most value vs the others)",
   "keyFactors": ["array of 3-5 key factors driving this pick"],
   "risks": ["array of 2-3 risks to this bet"],
   "verdict": "STRONG BET | LEAN | PASS",
-  "historicalContext": "string (relevant historical stats or trends)"
+  "historicalContext": "string (relevant historical stats or trends)",
+  "allBetAnalysis": {
+    "moneyline": { "pick": "string", "odds": "string", "edge": "string", "verdict": "STRONG BET | LEAN | PASS" },
+    "spread": { "pick": "string", "odds": "string", "edge": "string", "verdict": "STRONG BET | LEAN | PASS" },
+    "overUnder": { "pick": "string", "odds": "string", "edge": "string", "verdict": "STRONG BET | LEAN | PASS" }
+  }
 }
 
-Be analytical, data-driven, and honest. If the edge is not there, say PASS. Include relevant recent form, head-to-head records, injuries if known, and situational factors. Return only valid JSON, no markdown.`;
+Be analytical, data-driven, and honest. If the edge is not there for a given bet type, mark it PASS. Include relevant recent form, head-to-head records, injuries if known, and situational factors. Return only valid JSON, no markdown.`;
 
 export default function SportsBetting() {
   const [bets, setBets] = useState(() => loadBets());
@@ -72,7 +78,6 @@ export default function SportsBetting() {
   const [gamesState, setGamesState] = useState('idle'); // idle | loading | ready | error
   const [selectedGameId, setSelectedGameId] = useState('');
   const [manualMatchup, setManualMatchup] = useState('');
-  const [betType, setBetType] = useState('Moneyline');
   const [stake, setStake] = useState(50);
 
   // Optional manual odds entry
@@ -153,11 +158,11 @@ export default function SportsBetting() {
     const userMessage = [
       `Sport: ${activeSport.label}`,
       `Matchup: ${currentMatchup}`,
-      `Bet Type: ${betType}`,
       `Stake: $${Number(stake)}`,
+      `Analyze moneyline, spread, and over/under, then recommend the single best bet across all three.`,
       `Calculate the potentialPayout as the total profit (not including stake) for a winning $${Number(
         stake
-      )} bet at the recommended odds.`,
+      )} bet at the recommended best bet's odds.`,
       oddsContext,
       oddsInstruction,
     ]
@@ -185,11 +190,13 @@ export default function SportsBetting() {
       if (!parsed || !parsed.recommendation) {
         throw new Error('The analysis could not be parsed. Please try again.');
       }
+      const bestType = parsed.bestBetType || parsed.betType || 'Best Bet';
       setAnalysis({
         ...parsed,
         sport: activeSport.label,
         matchup: parsed.matchup || currentMatchup,
-        betType: parsed.betType || betType,
+        bestBetType: bestType,
+        betType: parsed.betType || bestType,
         stake: Number(stake),
       });
     } catch (err) {
@@ -342,31 +349,19 @@ export default function SportsBetting() {
                   )}
                 </Field>
 
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <Field label="Bet Type">
-                    <select
-                      value={betType}
-                      onChange={(e) => setBetType(e.target.value)}
-                      className={inputClass}
-                    >
-                      {BET_TYPES.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-
-                  <Field label="Stake ($)">
-                    <input
-                      type="number"
-                      min="1"
-                      value={stake}
-                      onChange={(e) => setStake(e.target.value)}
-                      className={inputClass}
-                    />
-                  </Field>
-                </div>
+                <Field label="Stake ($)">
+                  <input
+                    type="number"
+                    min="1"
+                    value={stake}
+                    onChange={(e) => setStake(e.target.value)}
+                    className={inputClass}
+                  />
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Claude analyzes moneyline, spread, and over/under, then
+                    recommends the single best bet.
+                  </p>
+                </Field>
 
                 {/* Optional manual odds */}
                 <div className="rounded-xl border border-white/10 bg-ink-900/40">
@@ -536,17 +531,42 @@ function AnalysisCard({ analysis, icon, onLog, onReset }) {
                 {analysis.matchup}
               </h2>
               <p className="text-xs uppercase tracking-wide text-slate-400">
-                {analysis.sport} · {analysis.betType}
+                {analysis.sport}
               </p>
             </div>
           </div>
           <VerdictBadge verdict={analysis.verdict} />
         </div>
 
+        {/* Best bet banner */}
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-accent-blue/30 bg-gradient-to-r from-accent-blue/15 to-accent-violet/15 px-4 py-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-accent-blue">
+              ★ Best Bet
+            </p>
+            <p className="mt-0.5 text-lg font-bold text-white">
+              {analysis.bestBetType || analysis.betType}
+            </p>
+          </div>
+          <p className="text-right text-xs text-slate-400">
+            Best value across all
+            <br />
+            three bet types
+          </p>
+        </div>
+
+        {/* All bet types summary */}
+        {analysis.allBetAnalysis && (
+          <AllBetsSummary
+            data={analysis.allBetAnalysis}
+            bestBetType={analysis.bestBetType || analysis.betType}
+          />
+        )}
+
         {/* Recommendation + confidence */}
         <div className="rounded-xl border border-white/10 bg-ink-900/50 p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">
-            Recommendation
+            Recommendation · {analysis.bestBetType || analysis.betType}
           </p>
           <p className="mt-1 text-base font-semibold text-white">
             {analysis.recommendation}
@@ -676,6 +696,66 @@ function VerdictBadge({ verdict }) {
     >
       {verdict || 'PASS'}
     </span>
+  );
+}
+
+function AllBetsSummary({ data, bestBetType }) {
+  const rows = [
+    { key: 'moneyline', label: 'Moneyline', types: ['moneyline'], bet: data.moneyline },
+    { key: 'spread', label: 'Spread', types: ['spread'], bet: data.spread },
+    {
+      key: 'overUnder',
+      label: 'Over / Under',
+      types: ['over', 'under', 'over/under', 'overunder'],
+      bet: data.overUnder,
+    },
+  ];
+  const best = (bestBetType || '').toLowerCase();
+
+  return (
+    <div>
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">
+        All Bet Types
+      </p>
+      <div className="space-y-2">
+        {rows.map((row) => {
+          if (!row.bet) return null;
+          const isBest = row.types.includes(best);
+          return (
+            <div
+              key={row.key}
+              className={
+                'flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 ' +
+                (isBest
+                  ? 'border-accent-blue/40 bg-accent-blue/10'
+                  : 'border-white/10 bg-ink-900/40')
+              }
+            >
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {row.label}
+                  {isBest && (
+                    <span className="rounded-full bg-accent-blue/20 px-1.5 py-0.5 text-[9px] font-bold text-accent-blue">
+                      BEST
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 truncate text-sm text-white">
+                  {row.bet.pick || '—'}
+                  {row.bet.odds ? (
+                    <span className="text-slate-400"> · {row.bet.odds}</span>
+                  ) : null}
+                  {row.bet.edge ? (
+                    <span className="text-slate-500"> · edge {row.bet.edge}</span>
+                  ) : null}
+                </p>
+              </div>
+              <VerdictBadge verdict={row.bet.verdict} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
