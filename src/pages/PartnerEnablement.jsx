@@ -155,7 +155,7 @@ export default function PartnerEnablement() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           model: CLAUDE_MODEL,
-          max_tokens: 4000,
+          max_tokens: 6000,
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: userMessage }],
         }),
@@ -560,13 +560,19 @@ function DownloadIcon() {
 
 function extractJson(text) {
   if (!text) return null;
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  const candidate = fenced ? fenced[1] : text;
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) return null;
   try {
-    return JSON.parse(candidate.slice(start, end + 1));
+    // Remove markdown code blocks if present
+    const cleaned = text
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
+
+    // Try to find the JSON object in the response
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    throw new Error('No valid JSON found in response');
   } catch {
     return null;
   }
