@@ -9,6 +9,7 @@ import VoiceProspecting from './pages/VoiceProspecting.jsx';
 import VoiceDemos from './pages/VoiceDemos.jsx';
 import WoodworkingGuide from './pages/WoodworkingGuide.jsx';
 import SportsBetting from './pages/SportsBetting.jsx';
+import PartnerEnablement from './pages/PartnerEnablement.jsx';
 import Insights from './pages/Insights.jsx';
 import InsightPost from './pages/InsightPost.jsx';
 import DealStories from './pages/DealStories.jsx';
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/demos" element={<VoiceDemos />} />
           <Route path="/woodworking-guide" element={<WoodworkingGuide />} />
           <Route path="/sports-betting" element={<SportsBetting />} />
+          <Route path="/partner-enablement" element={<PartnerEnablement />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/insights/:slug" element={<InsightPost />} />
           <Route path="/deal-stories" element={<DealStories />} />

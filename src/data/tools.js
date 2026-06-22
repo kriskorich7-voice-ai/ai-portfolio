@@ -12,6 +12,18 @@ export const tools = [
     status: 'Live',
   },
   {
+    slug: 'partner-enablement',
+    name: 'Partner Enablement Kit Generator',
+    category: 'professional',
+    tagline: 'Generate a custom onboarding and enablement PDF for any new Deepgram partner.',
+    description:
+      'Generate a custom onboarding and enablement PDF for any new Deepgram partner.',
+    tags: ['Partnerships', 'Enablement', 'Claude'],
+    accent: 'from-accent-blue/40 to-accent-violet/20',
+    href: '/partner-enablement',
+    status: 'Live',
+  },
+  {
     slug: 'roi-calculator',
     name: 'ROI Calculator',
     category: 'professional',
