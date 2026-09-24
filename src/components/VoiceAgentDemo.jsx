@@ -120,16 +120,20 @@ export default function VoiceAgentDemo({ config, onClose }) {
    * player's buffer to drain, then hold for the echo tail. Once this runs the
    * gate stays open for the rest of the session.
    */
-  function releaseSttGateWhenDrained() {
+  function releaseSttGateWhenDrained(prevRemainingMs = Infinity) {
     if (gateTimerRef.current) {
       window.clearTimeout(gateTimerRef.current);
       gateTimerRef.current = null;
     }
     const remainingMs =
       (playerRef.current?.getRemainingPlaybackTime?.() ?? 0) * 1000;
-    if (remainingMs > 0) {
+    // Remaining time is measured against the context clock, which stops
+    // advancing if the context never starts. Polling a stalled drain would pin
+    // the mic shut until the 30s failsafe, so a drain that stops making
+    // progress counts as finished.
+    if (remainingMs > 0 && remainingMs < prevRemainingMs) {
       gateTimerRef.current = window.setTimeout(
-        releaseSttGateWhenDrained,
+        () => releaseSttGateWhenDrained(remainingMs),
         Math.min(remainingMs + 20, 250)
       );
       return;
@@ -262,6 +266,17 @@ export default function VoiceAgentDemo({ config, onClose }) {
 
       const player = new AgentPlayer();
       playerRef.current = player;
+
+      // AgentPlayer builds its AudioContext lazily, on the first queue() call —
+      // and that call happens inside a WebSocket message callback, which is not
+      // a user gesture. Queue one silent sample here instead: start() runs
+      // synchronously from the orb click, so this opens the context while the
+      // gesture is still active and playback is allowed to begin.
+      try {
+        player.queue(new ArrayBuffer(2));
+      } catch {
+        /* ignore */
+      }
 
       session.on('audio', (chunk) => {
         if (cancelledRef.current) return;
