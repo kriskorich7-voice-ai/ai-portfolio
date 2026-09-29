@@ -87,6 +87,19 @@ export const tools = [
     status: 'Live',
   },
   {
+    slug: 'deepgram-voice-agent-demo',
+    name: 'Deepgram Voice Agent Demo',
+    category: 'professional',
+    tagline: 'Live voice agent demo with Flux STT/TTS, real-time tool calling, and end-of-call latency metrics.',
+    description:
+      'A live voice agent demo with Flux STT/TTS, real-time tool calling, and end-of-call latency metrics.',
+    tags: ['Voice AI', 'Flux', 'Deepgram'],
+    accent: 'from-accent-blue/40 to-accent-violet/20',
+    href: 'https://demo.kriskorich.com',
+    external: true,
+    status: 'Live',
+  },
+  {
     slug: 'woodworking-guide-generator',
     name: 'Woodworking Guide Generator',
     category: 'personal',
