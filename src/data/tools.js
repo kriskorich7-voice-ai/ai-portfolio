@@ -75,18 +75,6 @@ export const tools = [
     status: 'Live',
   },
   {
-    slug: 'voice-ai-demos',
-    name: 'Voice AI Demos',
-    category: 'professional',
-    tagline: 'Live voice agent demos across healthcare, airlines, and banking.',
-    description:
-      'Live voice agent demos across healthcare, airlines, and banking — powered by Deepgram.',
-    tags: ['Voice AI', 'Realtime', 'Deepgram'],
-    accent: 'from-accent-violet/40 to-accent-blue/20',
-    href: '/demos',
-    status: 'Live',
-  },
-  {
     slug: 'deepgram-voice-agent-demo',
     name: 'Deepgram Voice Agent Demo',
     category: 'professional',

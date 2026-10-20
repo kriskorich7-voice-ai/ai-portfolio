@@ -6,7 +6,6 @@ import Tools from './pages/Tools.jsx';
 import ProposalGenerator from './pages/ProposalGenerator.jsx';
 import RoiCalculator from './pages/RoiCalculator.jsx';
 import VoiceProspecting from './pages/VoiceProspecting.jsx';
-import VoiceDemos from './pages/VoiceDemos.jsx';
 import WoodworkingGuide from './pages/WoodworkingGuide.jsx';
 import SportsBetting from './pages/SportsBetting.jsx';
 import PartnerEnablement from './pages/PartnerEnablement.jsx';
@@ -29,7 +28,6 @@ export default function App() {
           <Route path="/proposal-generator" element={<ProposalGenerator />} />
           <Route path="/roi-calculator" element={<RoiCalculator />} />
           <Route path="/voice-prospecting" element={<VoiceProspecting />} />
-          <Route path="/demos" element={<VoiceDemos />} />
           <Route path="/woodworking-guide" element={<WoodworkingGuide />} />
           <Route path="/sports-betting" element={<SportsBetting />} />
           <Route path="/partner-enablement" element={<PartnerEnablement />} />
